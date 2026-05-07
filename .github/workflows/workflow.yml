@@ -9,6 +9,12 @@ permissions:
   contents: read
   id-token: write
 
+env:
+  UV_PROJECT_ENVIRONMENT: /tmp/game-install-finder/.venv
+  XDG_CACHE_HOME: /tmp/game-install-finder/.cache
+  PYTHONPYCACHEPREFIX: /tmp/game-install-finder/__pycache__
+  TMPDIR: /tmp/game-install-finder
+
 jobs:
   publish:
     runs-on: ubuntu-latest

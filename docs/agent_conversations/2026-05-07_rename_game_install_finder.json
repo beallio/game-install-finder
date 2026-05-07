@@ -23,6 +23,7 @@
     "Renamed the PyPI distribution, import package, CLI command, and cache root to game-install-finder naming.",
     "Kept Steam as the only implemented launcher while documenting Heroic and Lutris as future direction.",
     "Configured PyPI Trusted Publishing through GitHub Actions using uv build --no-sources and uv publish.",
+    "Configured the GitHub Actions workflow to redirect Python bytecode and tool caches to /tmp/game-install-finder.",
     "Skipped TestPyPI per user direction."
   ],
   "results": [
@@ -30,6 +31,7 @@
     "Added failing tests for the new project metadata, import package, cache root, README wording, and publish workflow.",
     "Renamed src/game_path_finder to src/game_install_finder and moved the CLI implementation to cli.py.",
     "Verified ./run.sh uv run game-install-finder --help works.",
-    "Validated with ruff, ty, pytest, and uv build --no-sources before commit."
+    "Validated with ruff, ty, pytest, and uv build --no-sources before commit.",
+    "Initial v0.1.0 workflow run failed before publishing because GitHub Actions generated in-repository __pycache__ files; updated workflow environment to match the local cache isolation policy."
   ]
 }

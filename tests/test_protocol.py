@@ -79,6 +79,8 @@ def test_pypi_publish_workflow_uses_uv_and_trusted_publishing():
     required_phrases = [
         "environment: pypi",
         "id-token: write",
+        "UV_PROJECT_ENVIRONMENT: /tmp/game-install-finder/.venv",
+        "PYTHONPYCACHEPREFIX: /tmp/game-install-finder/__pycache__",
         "uv sync --locked --all-groups",
         "uv build --no-sources",
         "uv publish",
