@@ -17,5 +17,4 @@ coverage.xml
 .coverage.*
 *.parquet
 /tmp/
-AGENTS.md
 GEMINI.md
