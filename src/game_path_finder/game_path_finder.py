@@ -1,0 +1,578 @@
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "vdf",
+# ]
+# ///
+"""
+Steam Path Finder (Hardened Single-File Edition)
+================================================
+
+A robust Steam library discovery and game resolution CLI.
+
+Features
+--------
+- Cross-platform Steam discovery
+- Proper Steam libraryfolders.vdf parsing
+- Multi-library support
+- Installed game enumeration
+- Exact/fuzzy appid lookup
+- Structured JSON output
+- PEP 723 compatible (`uv run`)
+
+Why this version exists
+-----------------------
+The lightweight implementations commonly found online tend to:
+- incorrectly return `steamapps/common` instead of the real game path
+- break against newer Steam VDF formats
+- rely on brittle string splitting
+- fail with multiple Steam libraries
+- incorrectly assume game folder names
+
+This implementation hardens those areas while remaining:
+- single-file
+- scripting-friendly
+
+Examples
+--------
+List installed games:
+    uv run steam_path_finder.py --list-games --pretty
+
+Find a game by appid:
+    uv run steam_path_finder.py --app-id 570 --pretty
+
+Fuzzy match a game:
+    uv run steam_path_finder.py --appid-from-name "counter strike"
+
+Machine-readable JSON:
+    uv run steam_path_finder.py --list-games
+
+Notes
+-----
+This tool ONLY sees locally installed games.
+It does not query the Steam Web API.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import platform
+import re
+import sys
+from dataclasses import asdict, dataclass
+from difflib import SequenceMatcher
+from pathlib import Path
+from typing import Any
+
+import vdf
+
+
+FUZZY_MATCH_THRESHOLD = 0.55
+
+
+@dataclass(frozen=True)
+class SteamGame:
+    appid: str | None
+    name: str | None
+    installdir: str | None
+    path: Path | None
+    exists: bool
+    library: Path
+    manifest: Path
+
+    def to_json(self) -> dict[str, Any]:
+        data = asdict(self)
+        for key in ("path", "library", "manifest"):
+            value = data[key]
+            data[key] = str(value) if value is not None else None
+        return data
+
+
+def warn(message: str, *, debug: bool) -> None:
+    if debug:
+        print(f"warning: {message}", file=sys.stderr)
+
+
+def print_json(data: dict[str, Any], *, pretty: bool) -> None:
+    indent = 2 if pretty else None
+    print(json.dumps(data, indent=indent))
+
+
+# ============================================================
+# Steam discovery
+# ============================================================
+
+
+def get_steam_path() -> Path | None:
+    """
+    Locate the Steam installation directory.
+
+    Returns:
+        Path to Steam root directory or None.
+    """
+    system = platform.system()
+
+    if system == "Windows":
+        try:
+            import winreg
+
+            open_key = getattr(winreg, "OpenKey")
+            hkey_current_user = getattr(winreg, "HKEY_CURRENT_USER")
+            query_value_ex = getattr(winreg, "QueryValueEx")
+
+            with open_key(
+                hkey_current_user,
+                r"Software\Valve\Steam",
+            ) as key:
+                value, _ = query_value_ex(key, "SteamPath")
+                path = Path(value)
+
+                if path.exists():
+                    return path
+
+        except Exception:
+            return None
+
+    elif system == "Linux":
+        candidates = [
+            Path.home() / ".steam/steam",
+            Path.home() / ".local/share/Steam",
+            Path.home() / ".var/app/com.valvesoftware.Steam/.steam/steam",
+            Path.home() / ".steam/root",
+        ]
+
+        for path in candidates:
+            if path.exists():
+                return path
+
+    elif system == "Darwin":
+        path = Path.home() / "Library/Application Support/Steam"
+
+        if path.exists():
+            return path
+
+    return None
+
+
+# ============================================================
+# VDF parsing
+# ============================================================
+
+
+def load_vdf_file(vdf_path: Path, *, debug: bool = False) -> dict[str, Any]:
+    """
+    Load a Valve KeyValues file.
+    """
+    if not vdf_path.exists():
+        return {}
+
+    try:
+        with vdf_path.open(encoding="utf-8", errors="ignore") as file:
+            loaded = vdf.load(file)
+    except (OSError, SyntaxError, ValueError) as exc:
+        warn(f"could not parse {vdf_path}: {exc}", debug=debug)
+        return {}
+
+    if isinstance(loaded, dict):
+        return loaded
+
+    warn(f"unexpected VDF root in {vdf_path}: {type(loaded).__name__}", debug=debug)
+    return {}
+
+
+def parse_libraryfolders_vdf(vdf_path: Path, *, debug: bool = False) -> list[Path]:
+    """
+    Parse Steam's libraryfolders.vdf safely.
+
+    Modern Steam format resembles:
+
+        "1"
+        {
+            "path" "/mnt/games/SteamLibrary"
+            ...
+        }
+
+    Returns:
+        List of Steam library root paths.
+    """
+    libraries: list[Path] = []
+
+    data = load_vdf_file(vdf_path, debug=debug)
+    libraryfolders = data.get("libraryfolders", {})
+
+    if not isinstance(libraryfolders, dict):
+        warn(f"unexpected libraryfolders shape in {vdf_path}", debug=debug)
+        return libraries
+
+    for library in libraryfolders.values():
+        if not isinstance(library, dict):
+            continue
+
+        value = library.get("path")
+
+        if not isinstance(value, str):
+            continue
+
+        path = Path(value)
+
+        if path.exists():
+            libraries.append(path)
+        else:
+            warn(f"Steam library path does not exist: {path}", debug=debug)
+
+    return libraries
+
+
+def get_library_paths(steam_path: Path, *, debug: bool = False) -> list[Path]:
+    """
+    Return all detected Steam library paths.
+
+    Includes:
+    - primary Steam library
+    - secondary mounted libraries
+    """
+    libraries: list[Path] = [steam_path]
+
+    vdf_path = steam_path / "steamapps" / "libraryfolders.vdf"
+
+    extra = parse_libraryfolders_vdf(vdf_path, debug=debug)
+
+    seen = set()
+
+    deduped = []
+
+    for lib in libraries + extra:
+        resolved = str(lib.resolve())
+
+        if resolved not in seen:
+            deduped.append(lib)
+            seen.add(resolved)
+
+    return deduped
+
+
+# ============================================================
+# Manifest parsing
+# ============================================================
+
+
+def parse_manifest(manifest_path: Path, *, debug: bool = False) -> dict[str, str]:
+    """
+    Parse a Steam appmanifest ACF file.
+
+    Extracts:
+    - appid
+    - name
+    - installdir
+    """
+    data = load_vdf_file(manifest_path, debug=debug)
+    app_state = data.get("AppState", {})
+
+    if not isinstance(app_state, dict):
+        warn(f"unexpected AppState shape in {manifest_path}", debug=debug)
+        return {}
+
+    return {
+        key: value
+        for key in ("appid", "name", "installdir")
+        if isinstance(value := app_state.get(key), str)
+    }
+
+
+# ============================================================
+# Game indexing
+# ============================================================
+
+
+def build_game_index(steam_path: Path, *, debug: bool = False) -> list[SteamGame]:
+    """
+    Enumerate all installed Steam games.
+
+    Returns:
+        List of normalized game metadata records.
+    """
+    results: list[SteamGame] = []
+
+    for library in get_library_paths(steam_path, debug=debug):
+        steamapps = library / "steamapps"
+
+        if not steamapps.exists():
+            warn(f"Steam apps directory does not exist: {steamapps}", debug=debug)
+            continue
+
+        for manifest in steamapps.glob("appmanifest_*.acf"):
+            meta = parse_manifest(manifest, debug=debug)
+
+            if not meta:
+                warn(f"skipping manifest with no app metadata: {manifest}", debug=debug)
+                continue
+
+            appid = meta.get("appid")
+            name = meta.get("name")
+            installdir = meta.get("installdir")
+
+            game_path = None
+
+            if installdir:
+                game_path = steamapps / "common" / installdir
+
+            results.append(
+                SteamGame(
+                    appid=appid,
+                    name=name,
+                    installdir=installdir,
+                    path=game_path,
+                    exists=game_path.exists() if game_path else False,
+                    library=library,
+                    manifest=manifest,
+                )
+            )
+
+    return sorted(
+        results,
+        key=lambda game: (game.name or "").lower(),
+    )
+
+
+# ============================================================
+# Lookup helpers
+# ============================================================
+
+
+def get_game_by_appid(
+    games: list[SteamGame],
+    appid: str,
+) -> SteamGame | None:
+    """
+    Resolve installed game metadata by appid.
+    """
+    for game in games:
+        if game.appid == str(appid):
+            return game
+
+    return None
+
+
+def normalize_name(name: str) -> str:
+    """
+    Normalize game names for fuzzy matching.
+    """
+    name = name.casefold()
+
+    name = name.replace("_", " ")
+
+    name = re.sub(r"[^\w\s]", " ", name)
+
+    name = re.sub(r"\s+", " ", name, flags=re.UNICODE)
+
+    return name.strip()
+
+
+def fuzzy_match_game(
+    query: str,
+    games: list[SteamGame],
+) -> dict[str, Any]:
+    """
+    Perform robust fuzzy matching against installed games.
+
+    Strategy:
+    - normalization
+    - exact normalized match
+    - substring match
+    - SequenceMatcher scoring
+    - confidence threshold with fallback candidates
+    """
+    if not games:
+        return {
+            "match": None,
+            "candidates": [],
+            "score": 0.0,
+        }
+
+    normalized_query = normalize_name(query)
+
+    if not normalized_query:
+        return {
+            "match": None,
+            "candidates": [],
+            "score": 0.0,
+        }
+
+    scored: list[tuple[float, SteamGame]] = []
+
+    for game in games:
+        name = game.name
+
+        if not name:
+            continue
+
+        normalized_name = normalize_name(name)
+
+        if normalized_query == normalized_name:
+            return {
+                "match": game,
+                "candidates": [name],
+                "score": 1.0,
+            }
+
+        score = SequenceMatcher(
+            None,
+            normalized_query,
+            normalized_name,
+        ).ratio()
+
+        if normalized_query in normalized_name:
+            score += 0.25
+
+        score = min(score, 1.0)
+
+        scored.append((score, game))
+
+    scored.sort(
+        key=lambda item: item[0],
+        reverse=True,
+    )
+
+    candidates = [game.name for _, game in scored[:5] if game.name]
+
+    best_score = scored[0][0] if scored else 0.0
+    best_match = scored[0][1] if scored and best_score >= FUZZY_MATCH_THRESHOLD else None
+
+    return {
+        "match": best_match,
+        "candidates": candidates,
+        "score": best_score,
+    }
+
+
+# ============================================================
+# CLI
+# ============================================================
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """
+    Construct CLI parser.
+    """
+    parser = argparse.ArgumentParser(
+        description=("Steam discovery CLI (installed games, paths, fuzzy appid lookup)")
+    )
+
+    parser.add_argument(
+        "--steam-path",
+        action="store_true",
+        help="Return detected Steam installation path",
+    )
+
+    parser.add_argument(
+        "--steam-root",
+        type=Path,
+        help="Use this Steam installation path instead of auto-detection",
+    )
+
+    parser.add_argument(
+        "--list-games",
+        action="store_true",
+        help="Enumerate installed games",
+    )
+
+    parser.add_argument(
+        "--app-id",
+        help="Lookup installed game by appid",
+    )
+
+    parser.add_argument(
+        "--appid-from-name",
+        help="Fuzzy match installed game name to appid",
+    )
+
+    parser.add_argument(
+        "--pretty",
+        action="store_true",
+        help="Pretty-print JSON output",
+    )
+
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print non-fatal parser/discovery warnings to stderr",
+    )
+
+    return parser
+
+
+# ============================================================
+# Main
+# ============================================================
+
+
+def main() -> int:
+    """
+    CLI entrypoint.
+    """
+    parser = build_parser()
+
+    args = parser.parse_args()
+
+    steam_path = args.steam_root or get_steam_path()
+
+    if not steam_path:
+        print_json(
+            {"error": "Steam installation not found"},
+            pretty=args.pretty,
+        )
+        return 1
+
+    if args.steam_root and not steam_path.exists():
+        print_json(
+            {
+                "error": "Steam root does not exist",
+                "steam_path": str(steam_path),
+            },
+            pretty=args.pretty,
+        )
+        return 1
+
+    games_cache: list[SteamGame] | None = None
+
+    if args.list_games or args.app_id or args.appid_from_name:
+        games_cache = build_game_index(steam_path, debug=args.debug)
+
+    output: dict[str, Any] = {
+        "steam_path": str(steam_path),
+    }
+
+    if args.list_games:
+        output["games"] = [game.to_json() for game in games_cache or []]
+
+    if args.app_id:
+        game = get_game_by_appid(
+            games_cache or [],
+            args.app_id,
+        )
+
+        output["game"] = game.to_json() if game else None
+
+        if game:
+            output["app_path"] = str(game.path) if game.path else None
+
+    if args.appid_from_name:
+        result = fuzzy_match_game(
+            args.appid_from_name,
+            games_cache or [],
+        )
+
+        match = result["match"]
+        output["match"] = match.to_json() if match else None
+        output["candidates"] = result["candidates"]
+        output["score"] = result["score"]
+
+    print_json(output, pretty=args.pretty)
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
