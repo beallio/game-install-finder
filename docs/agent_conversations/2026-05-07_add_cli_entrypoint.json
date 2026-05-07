@@ -1,6 +1,6 @@
 {
   "date": "2026-05-07",
-  "task_objective": "Expose game_path_finder as a direct CLI command instead of requiring python -m.",
+  "task_objective": "Expose game_install_finder as a direct CLI command instead of requiring python -m.",
   "files_modified": [
     "README.md",
     "docs/plans/add_cli_entrypoint.md",
@@ -9,17 +9,17 @@
     "tests/test_protocol.py"
   ],
   "tests_added": [
-    "tests/test_protocol.py::test_project_declares_game_path_finder_console_script"
+    "tests/test_protocol.py::test_project_declares_game_install_finder_console_script"
   ],
   "design_decisions": [
     "Used a standard pyproject.toml console script entry point instead of a custom repository shell script.",
-    "Kept the entry point wired to the existing game_path_finder.game_path_finder:main function.",
-    "Updated README examples to use ./run.sh uv run game-path-finder so users do not need python -m."
+    "Kept the entry point wired to the existing game_install_finder.cli:main function.",
+    "Updated README examples to use ./run.sh uv run game-install-finder so users do not need python -m."
   ],
   "results": [
     "Red protocol test failed because pyproject.toml did not define project.scripts.",
-    "Added the game-path-finder console script entry point.",
-    "Verified ./run.sh uv run game-path-finder --help works.",
+    "Added the game-install-finder console script entry point.",
+    "Verified ./run.sh uv run game-install-finder --help works.",
     "After the entrypoint update, ./run.sh uv run ruff check . --fix passed.",
     "After the entrypoint update, ./run.sh uv run ruff format . passed.",
     "After the entrypoint update, ./run.sh uv run ty check src/ passed.",

@@ -1,6 +1,6 @@
 {
   "date": "2026-05-07",
-  "task_objective": "Update the README documentation for the game_path_finder tool.",
+  "task_objective": "Update the README documentation for the game_install_finder tool.",
   "files_modified": [
     "README.md",
     "docs/plans/update_readme.md",

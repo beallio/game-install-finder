@@ -1,0 +1,35 @@
+{
+  "date": "2026-05-07",
+  "task_objective": "Rename the project to game-install-finder and prepare GitHub Actions PyPI publishing metadata.",
+  "files_modified": [
+    ".envrc",
+    ".github/workflows/workflow.yml",
+    ".protocol",
+    "README.md",
+    "docs/plans/rename_game_install_finder.md",
+    "docs/agent_conversations/2026-05-07_rename_game_install_finder.json",
+    "pyproject.toml",
+    "run.sh",
+    "src/game_install_finder/",
+    "tests/",
+    "uv.lock"
+  ],
+  "tests_added": [
+    "tests/test_protocol.py::test_project_declares_game_install_finder_metadata",
+    "tests/test_protocol.py::test_cache_paths_use_game_install_finder_root",
+    "tests/test_protocol.py::test_pypi_publish_workflow_uses_uv_and_trusted_publishing"
+  ],
+  "design_decisions": [
+    "Renamed the PyPI distribution, import package, CLI command, and cache root to game-install-finder naming.",
+    "Kept Steam as the only implemented launcher while documenting Heroic and Lutris as future direction.",
+    "Configured PyPI Trusted Publishing through GitHub Actions using uv build --no-sources and uv publish.",
+    "Skipped TestPyPI per user direction."
+  ],
+  "results": [
+    "Merged feat-cli-entrypoint into main before the rename.",
+    "Added failing tests for the new project metadata, import package, cache root, README wording, and publish workflow.",
+    "Renamed src/game_path_finder to src/game_install_finder and moved the CLI implementation to cli.py.",
+    "Verified ./run.sh uv run game-install-finder --help works.",
+    "Validated with ruff, ty, pytest, and uv build --no-sources before commit."
+  ]
+}

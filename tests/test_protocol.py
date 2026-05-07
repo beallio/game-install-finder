@@ -29,11 +29,12 @@ def test_readme_documents_tool_usage_and_dependencies():
     readme = Path("README.md").read_text(encoding="utf-8")
 
     required_phrases = [
-        "Steam library and installed-game path discovery CLI",
+        "Find local game install paths across PC game launchers",
+        "Currently supports Steam",
         "Installation",
         "./run.sh uv sync",
         "Usage",
-        "game-path-finder",
+        "game-install-finder",
         "--steam-root PATH",
         "--list-games",
         "--app-id APPID",
@@ -47,9 +48,41 @@ def test_readme_documents_tool_usage_and_dependencies():
         assert phrase in readme
 
 
-def test_project_declares_game_path_finder_console_script():
+def test_project_declares_game_install_finder_metadata():
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    project = pyproject["project"]
 
-    assert pyproject["project"]["scripts"]["game-path-finder"] == (
-        "game_path_finder.game_path_finder:main"
+    assert project["name"] == "game-install-finder"
+    assert project["description"] == (
+        "Find local game install paths across PC game launchers. Currently supports Steam."
     )
+    assert project["scripts"]["game-install-finder"] == "game_install_finder.cli:main"
+    assert project["urls"]["Homepage"] == "https://github.com/beallio/game-install-finder"
+    assert project["urls"]["Repository"] == "https://github.com/beallio/game-install-finder"
+    assert project["urls"]["Issues"] == "https://github.com/beallio/game-install-finder/issues"
+
+
+def test_cache_paths_use_game_install_finder_root():
+    expected_root = "/tmp/game-install-finder"
+
+    assert f"CACHE_ROOT={expected_root}" in Path(".protocol").read_text(encoding="utf-8")
+
+    for file_path in (Path("run.sh"), Path(".envrc"), Path("pyproject.toml"), Path("README.md")):
+        contents = file_path.read_text(encoding="utf-8")
+        assert expected_root in contents
+        assert "/tmp/game_path_finder" not in contents
+
+
+def test_pypi_publish_workflow_uses_uv_and_trusted_publishing():
+    workflow = Path(".github/workflows/workflow.yml").read_text(encoding="utf-8")
+
+    required_phrases = [
+        "environment: pypi",
+        "id-token: write",
+        "uv sync --locked --all-groups",
+        "uv build --no-sources",
+        "uv publish",
+    ]
+
+    for phrase in required_phrases:
+        assert phrase in workflow

@@ -3,13 +3,13 @@
 ## Problem Definition
 
 The current README still contains scaffold placeholders and does not document what the
-`game_path_finder` tool actually does, how to run it, which platforms it searches, what JSON it
+`game_install_finder` tool actually does, how to run it, which platforms it searches, what JSON it
 returns, or which dependencies it requires.
 
 ## Architecture Overview
 
 This is a documentation-only change. The README should describe the existing CLI implemented in
-`src/game_path_finder/game_path_finder.py` without changing runtime behavior.
+`src/game_install_finder/cli.py` without changing runtime behavior.
 
 ## Core Data Structures
 

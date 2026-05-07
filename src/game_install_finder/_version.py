@@ -1,6 +1,6 @@
 try:
     from importlib.metadata import version, PackageNotFoundError
 
-    __version__ = version("game_path_finder")
+    __version__ = version("game-install-finder")
 except PackageNotFoundError:
     __version__ = "unknown"

@@ -1,7 +1,7 @@
 [project]
-name = "game_path_finder"
+name = "game-install-finder"
 dynamic = ["version"]
-description = "Enter project description here"
+description = "Find local game install paths across PC game launchers. Currently supports Steam."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
@@ -13,28 +13,36 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
 ]
-keywords = []
+keywords = [
+    "cli",
+    "games",
+    "heroic",
+    "launcher",
+    "lutris",
+    "paths",
+    "steam",
+]
 dependencies = [
     "vdf>=3.4",
 ]
 
 [project.scripts]
-game-path-finder = "game_path_finder.game_path_finder:main"
+game-install-finder = "game_install_finder.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/beallio/game_path_finder"
-Repository = "https://github.com/beallio/game_path_finder"
-Issues = "https://github.com/beallio/game_path_finder/issues"
+Homepage = "https://github.com/beallio/game-install-finder"
+Repository = "https://github.com/beallio/game-install-finder"
+Issues = "https://github.com/beallio/game-install-finder/issues"
 
 [tool.hatch.version]
 source = "vcs"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/game_path_finder"]
+packages = ["src/game_install_finder"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/game_path_finder",
+    "src/game_install_finder",
     "README.md",
     "LICENSE",
 ]
@@ -44,19 +52,19 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.uv]
-cache-dir = "/tmp/game_path_finder/.uv_cache"
+cache-dir = "/tmp/game-install-finder/.uv_cache"
 
 [tool.ruff]
 line-length = 100
-cache-dir = "/tmp/game_path_finder/.ruff_cache"
+cache-dir = "/tmp/game-install-finder/.ruff_cache"
 
 [tool.pytest.ini_options]
 addopts = "--cov=src --cov-report=term"
-cache_dir = "/tmp/game_path_finder/.pytest_cache"
+cache_dir = "/tmp/game-install-finder/.pytest_cache"
 pythonpath = ["src"]
 
 [tool.coverage.run]
-data_file = "/tmp/game_path_finder/.coverage"
+data_file = "/tmp/game-install-finder/.coverage"
 
 [dependency-groups]
 dev = [

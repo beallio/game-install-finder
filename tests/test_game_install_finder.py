@@ -1,4 +1,4 @@
-from game_path_finder.game_path_finder import (
+from game_install_finder.cli import (
     build_parser,
     build_game_index,
     fuzzy_match_game,

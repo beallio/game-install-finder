@@ -13,7 +13,7 @@
   ],
   "design_decisions": [
     "Removed the Gemini-specific ignore file instead of replacing it, because AGENTS.md identifies AGENTS.md as the only generated agent instruction file.",
-    "Removed generated Python bytecode caches from the repository tree and relied on the existing wrapper PYTHONPYCACHEPREFIX to keep future bytecode under /tmp/game_path_finder.",
+    "Removed generated Python bytecode caches from the repository tree and relied on the existing wrapper PYTHONPYCACHEPREFIX to keep future bytecode under /tmp/game-install-finder.",
     "Added protocol regression tests so the same discrepancies fail in normal pytest runs."
   ],
   "results": [

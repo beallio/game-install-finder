@@ -96,7 +96,7 @@ wheels = [
 ]
 
 [[package]]
-name = "game-path-finder"
+name = "game-install-finder"
 source = { editable = "." }
 dependencies = [
     { name = "vdf" },

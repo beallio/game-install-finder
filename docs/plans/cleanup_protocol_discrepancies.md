@@ -7,7 +7,7 @@ The repository contains artifacts that conflict with the project-local agent pro
 - A tracked `.geminiignore` file, despite `AGENTS.md` requiring that generated agent
   instructions avoid Gemini-specific files.
 - Python bytecode cache directories and `.pyc` files under `src/` and `tests/`, despite
-  the cache isolation policy requiring generated caches to live under `/tmp/game_path_finder`.
+  the cache isolation policy requiring generated caches to live under `/tmp/game-install-finder`.
 
 ## Architecture Overview
 

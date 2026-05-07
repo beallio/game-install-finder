@@ -6,10 +6,10 @@
 # ]
 # ///
 """
-Steam Path Finder (Hardened Single-File Edition)
-================================================
+Game Install Finder
+===================
 
-A robust Steam library discovery and game resolution CLI.
+A local game install path discovery CLI. Currently supports Steam libraries.
 
 Features
 --------
@@ -457,7 +457,7 @@ def build_parser() -> argparse.ArgumentParser:
     Construct CLI parser.
     """
     parser = argparse.ArgumentParser(
-        description=("Steam discovery CLI (installed games, paths, fuzzy appid lookup)"),
+        description=("Game install path discovery CLI (currently supports Steam)"),
         formatter_class=lambda prog: argparse.HelpFormatter(
             prog,
             width=100,
