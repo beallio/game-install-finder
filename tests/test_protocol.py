@@ -1,3 +1,4 @@
+import tomllib
 from pathlib import Path
 
 
@@ -32,7 +33,7 @@ def test_readme_documents_tool_usage_and_dependencies():
         "Installation",
         "./run.sh uv sync",
         "Usage",
-        "python -m game_path_finder.game_path_finder",
+        "game-path-finder",
         "--steam-root PATH",
         "--list-games",
         "--app-id APPID",
@@ -44,3 +45,11 @@ def test_readme_documents_tool_usage_and_dependencies():
 
     for phrase in required_phrases:
         assert phrase in readme
+
+
+def test_project_declares_game_path_finder_console_script():
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+    assert pyproject["project"]["scripts"]["game-path-finder"] == (
+        "game_path_finder.game_path_finder:main"
+    )

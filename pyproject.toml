@@ -18,6 +18,9 @@ dependencies = [
     "vdf>=3.4",
 ]
 
+[project.scripts]
+game-path-finder = "game_path_finder.game_path_finder:main"
+
 [project.urls]
 Homepage = "https://github.com/beallio/game_path_finder"
 Repository = "https://github.com/beallio/game_path_finder"

@@ -39,43 +39,43 @@ TMPDIR=/tmp/game_path_finder
 Run the CLI as a Python module from the repository root:
 
 ```bash
-./run.sh uv run python -m game_path_finder.game_path_finder --help
+./run.sh uv run game-path-finder --help
 ```
 
 List installed games:
 
 ```bash
-./run.sh uv run python -m game_path_finder.game_path_finder --list-games --pretty
+./run.sh uv run game-path-finder --list-games --pretty
 ```
 
 Print the detected Steam installation path:
 
 ```bash
-./run.sh uv run python -m game_path_finder.game_path_finder --steam-path --pretty
+./run.sh uv run game-path-finder --steam-path --pretty
 ```
 
 Use an explicit Steam root instead of auto-detection:
 
 ```bash
-./run.sh uv run python -m game_path_finder.game_path_finder --steam-root PATH --list-games --pretty
+./run.sh uv run game-path-finder --steam-root PATH --list-games --pretty
 ```
 
 Find an installed game by appid:
 
 ```bash
-./run.sh uv run python -m game_path_finder.game_path_finder --app-id APPID --pretty
+./run.sh uv run game-path-finder --app-id APPID --pretty
 ```
 
 Fuzzy match an installed game name:
 
 ```bash
-./run.sh uv run python -m game_path_finder.game_path_finder --appid-from-name NAME --pretty
+./run.sh uv run game-path-finder --appid-from-name NAME --pretty
 ```
 
 Enable non-fatal parser and discovery warnings:
 
 ```bash
-./run.sh uv run python -m game_path_finder.game_path_finder --list-games --debug --pretty
+./run.sh uv run game-path-finder --list-games --debug --pretty
 ```
 
 ## CLI Options
