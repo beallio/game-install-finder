@@ -1,0 +1,26 @@
+{
+  "date": "2026-05-07",
+  "task_objective": "Clean up repository discrepancies identified during AGENTS.md protocol review.",
+  "files_modified": [
+    ".geminiignore",
+    "docs/plans/cleanup_protocol_discrepancies.md",
+    "docs/agent_conversations/2026-05-07_cleanup_protocol_discrepancies.json",
+    "tests/test_protocol.py"
+  ],
+  "tests_added": [
+    "tests/test_protocol.py::test_no_gemini_specific_ignore_file",
+    "tests/test_protocol.py::test_generated_python_caches_stay_outside_repository"
+  ],
+  "design_decisions": [
+    "Removed the Gemini-specific ignore file instead of replacing it, because AGENTS.md identifies AGENTS.md as the only generated agent instruction file.",
+    "Removed generated Python bytecode caches from the repository tree and relied on the existing wrapper PYTHONPYCACHEPREFIX to keep future bytecode under /tmp/game_path_finder.",
+    "Added protocol regression tests so the same discrepancies fail in normal pytest runs."
+  ],
+  "results": [
+    "Red pytest run failed on the tracked .geminiignore file and in-repository Python cache artifacts.",
+    "After cleanup, ./run.sh uv run ruff check . --fix passed.",
+    "After cleanup, ./run.sh uv run ruff format . passed.",
+    "After cleanup, ./run.sh uv run ty check src/ passed.",
+    "After cleanup, ./run.sh uv run pytest passed with 8 tests."
+  ]
+}
