@@ -1,0 +1,62 @@
+[project]
+name = "game_path_finder"
+dynamic = ["version"]
+description = "Enter project description here"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "David Beall", email = "6121439+beallio@users.noreply.github.com" },
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = []
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/beallio/game_path_finder"
+Repository = "https://github.com/beallio/game_path_finder"
+Issues = "https://github.com/beallio/game_path_finder/issues"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/game_path_finder"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/game_path_finder",
+    "README.md",
+    "LICENSE",
+]
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+cache-dir = "/tmp/game_path_finder/.uv_cache"
+
+[tool.ruff]
+line-length = 100
+cache-dir = "/tmp/game_path_finder/.ruff_cache"
+
+[tool.pytest.ini_options]
+addopts = "--cov=src --cov-report=term"
+cache_dir = "/tmp/game_path_finder/.pytest_cache"
+pythonpath = ["src"]
+
+[tool.coverage.run]
+data_file = "/tmp/game_path_finder/.coverage"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.3.0",
+    "ty>=0.0.24",
+]
