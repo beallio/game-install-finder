@@ -457,7 +457,12 @@ def build_parser() -> argparse.ArgumentParser:
     Construct CLI parser.
     """
     parser = argparse.ArgumentParser(
-        description=("Steam discovery CLI (installed games, paths, fuzzy appid lookup)")
+        description=("Steam discovery CLI (installed games, paths, fuzzy appid lookup)"),
+        formatter_class=lambda prog: argparse.HelpFormatter(
+            prog,
+            width=100,
+            max_help_position=32,
+        ),
     )
 
     parser.add_argument(
@@ -469,6 +474,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--steam-root",
         type=Path,
+        metavar="PATH",
         help="Use this Steam installation path instead of auto-detection",
     )
 
@@ -480,11 +486,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--app-id",
+        metavar="APPID",
         help="Lookup installed game by appid",
     )
 
     parser.add_argument(
         "--appid-from-name",
+        metavar="NAME",
         help="Fuzzy match installed game name to appid",
     )
 

@@ -1,4 +1,5 @@
 from game_path_finder.game_path_finder import (
+    build_parser,
     build_game_index,
     fuzzy_match_game,
     get_game_by_appid,
@@ -81,3 +82,12 @@ def test_fuzzy_match_game_returns_best_installed_match(tmp_path):
 
     assert result["match"].appid == "730"
     assert result["score"] >= 0.55
+
+
+def test_help_uses_short_metavars_and_single_line_option_descriptions():
+    help_text = build_parser().format_help()
+
+    assert "--steam-root PATH       Use this Steam installation path" in help_text
+    assert "--app-id APPID          Lookup installed game by appid" in help_text
+    assert "--appid-from-name NAME  Fuzzy match installed game name" in help_text
+    assert "APPID_FROM_NAME" not in help_text
