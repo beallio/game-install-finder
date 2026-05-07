@@ -22,3 +22,25 @@ def test_generated_python_caches_stay_outside_repository():
     ]
 
     assert generated_cache_paths == []
+
+
+def test_readme_documents_tool_usage_and_dependencies():
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    required_phrases = [
+        "Steam library and installed-game path discovery CLI",
+        "Installation",
+        "./run.sh uv sync",
+        "Usage",
+        "python -m game_path_finder.game_path_finder",
+        "--steam-root PATH",
+        "--list-games",
+        "--app-id APPID",
+        "--appid-from-name NAME",
+        "JSON output",
+        "Dependency requirements",
+        "vdf",
+    ]
+
+    for phrase in required_phrases:
+        assert phrase in readme

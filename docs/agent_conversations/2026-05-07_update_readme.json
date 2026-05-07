@@ -1,0 +1,26 @@
+{
+  "date": "2026-05-07",
+  "task_objective": "Update the README documentation for the game_path_finder tool.",
+  "files_modified": [
+    "README.md",
+    "docs/plans/update_readme.md",
+    "docs/agent_conversations/2026-05-07_update_readme.json",
+    "tests/test_protocol.py"
+  ],
+  "tests_added": [
+    "tests/test_protocol.py::test_readme_documents_tool_usage_and_dependencies"
+  ],
+  "design_decisions": [
+    "Documented the existing module invocation because pyproject.toml does not define a console script entry point.",
+    "Described local-only Steam discovery and JSON output fields based on the existing CLI implementation.",
+    "Added a README regression test covering installation, usage examples, CLI options, JSON output, and dependency requirements."
+  ],
+  "results": [
+    "Red protocol test failed against the scaffold README.",
+    "Updated README with tool description, installation, usage examples, CLI options, JSON output examples, dependency requirements, development commands, and license information.",
+    "After the README update, ./run.sh uv run ruff check . --fix passed.",
+    "After the README update, ./run.sh uv run ruff format . passed.",
+    "After the README update, ./run.sh uv run ty check src/ passed.",
+    "After the README update, ./run.sh uv run pytest passed with 9 tests."
+  ]
+}
