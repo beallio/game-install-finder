@@ -57,9 +57,11 @@ def test_build_game_index_reads_primary_and_secondary_libraries(tmp_path):
     secondary_match = get_game_by_appid(games, "200")
 
     assert [game.appid for game in games] == ["100", "200"]
+    assert [game.launcher for game in games] == ["steam", "steam"]
     assert all(game.exists for game in games)
     assert secondary_match is not None
     assert secondary_match.path == secondary_game
+    assert secondary_match.source == secondary_apps / "appmanifest_200.acf"
 
 
 def test_fuzzy_match_game_returns_best_installed_match(tmp_path):
@@ -81,6 +83,7 @@ def test_fuzzy_match_game_returns_best_installed_match(tmp_path):
     result = fuzzy_match_game("counter strike", build_game_index(steam_root))
 
     assert result["match"].appid == "730"
+    assert result["match"].launcher == "steam"
     assert result["score"] >= 0.55
 
 

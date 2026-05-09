@@ -73,21 +73,26 @@ FUZZY_MATCH_THRESHOLD = 0.55
 
 
 @dataclass(frozen=True)
-class SteamGame:
+class InstalledGame:
+    launcher: str
     appid: str | None
     name: str | None
     installdir: str | None
     path: Path | None
     exists: bool
-    library: Path
-    manifest: Path
+    source: Path | None
+    library: Path | None = None
+    manifest: Path | None = None
 
     def to_json(self) -> dict[str, Any]:
         data = asdict(self)
-        for key in ("path", "library", "manifest"):
+        for key in ("path", "source", "library", "manifest"):
             value = data[key]
             data[key] = str(value) if value is not None else None
         return data
+
+
+SteamGame = InstalledGame
 
 
 def warn(message: str, *, debug: bool) -> None:
@@ -286,14 +291,14 @@ def parse_manifest(manifest_path: Path, *, debug: bool = False) -> dict[str, str
 # ============================================================
 
 
-def build_game_index(steam_path: Path, *, debug: bool = False) -> list[SteamGame]:
+def build_game_index(steam_path: Path, *, debug: bool = False) -> list[InstalledGame]:
     """
     Enumerate all installed Steam games.
 
     Returns:
         List of normalized game metadata records.
     """
-    results: list[SteamGame] = []
+    results: list[InstalledGame] = []
 
     for library in get_library_paths(steam_path, debug=debug):
         steamapps = library / "steamapps"
@@ -319,12 +324,14 @@ def build_game_index(steam_path: Path, *, debug: bool = False) -> list[SteamGame
                 game_path = steamapps / "common" / installdir
 
             results.append(
-                SteamGame(
+                InstalledGame(
+                    launcher="steam",
                     appid=appid,
                     name=name,
                     installdir=installdir,
                     path=game_path,
                     exists=game_path.exists() if game_path else False,
+                    source=manifest,
                     library=library,
                     manifest=manifest,
                 )
@@ -342,9 +349,9 @@ def build_game_index(steam_path: Path, *, debug: bool = False) -> list[SteamGame
 
 
 def get_game_by_appid(
-    games: list[SteamGame],
+    games: list[InstalledGame],
     appid: str,
-) -> SteamGame | None:
+) -> InstalledGame | None:
     """
     Resolve installed game metadata by appid.
     """
@@ -372,7 +379,7 @@ def normalize_name(name: str) -> str:
 
 def fuzzy_match_game(
     query: str,
-    games: list[SteamGame],
+    games: list[InstalledGame],
 ) -> dict[str, Any]:
     """
     Perform robust fuzzy matching against installed games.
@@ -400,7 +407,7 @@ def fuzzy_match_game(
             "score": 0.0,
         }
 
-    scored: list[tuple[float, SteamGame]] = []
+    scored: list[tuple[float, InstalledGame]] = []
 
     for game in games:
         name = game.name
@@ -543,7 +550,7 @@ def main() -> int:
         )
         return 1
 
-    games_cache: list[SteamGame] | None = None
+    games_cache: list[InstalledGame] | None = None
 
     if args.list_games or args.app_id or args.appid_from_name:
         games_cache = build_game_index(steam_path, debug=args.debug)
