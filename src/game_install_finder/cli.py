@@ -607,6 +607,30 @@ def build_lutris_index(
     return sorted(games, key=lambda game: (game.name or "").lower())
 
 
+def build_installed_game_index(
+    *,
+    steam_root: Path | None = None,
+    heroic_root: Path | None = None,
+    lutris_root: Path | None = None,
+    launcher: str = "all",
+    debug: bool = False,
+) -> list[InstalledGame]:
+    games: list[InstalledGame] = []
+
+    if launcher in ("all", "steam") and steam_root:
+        games.extend(build_game_index(steam_root, debug=debug))
+
+    if launcher in ("all", "heroic"):
+        games.extend(build_heroic_index(heroic_root, debug=debug))
+
+    if launcher in ("all", "lutris"):
+        games.extend(build_lutris_index(lutris_root, debug=debug))
+
+    games = filter_games_by_launcher(games, launcher)
+
+    return sorted(games, key=lambda game: (game.launcher, (game.name or "").lower()))
+
+
 # ============================================================
 # Lookup helpers
 # ============================================================
@@ -620,7 +644,7 @@ def get_game_by_appid(
     Resolve installed game metadata by appid.
     """
     for game in games:
-        if game.appid == str(appid):
+        if game.launcher == "steam" and game.appid == str(appid):
             return game
 
     return None
@@ -829,8 +853,6 @@ def main() -> int:
 
     launcher = args.launcher
     include_steam = launcher in ("all", "steam")
-    include_heroic = launcher in ("all", "heroic")
-    include_lutris = launcher in ("all", "lutris")
     needs_games = args.list_games or args.app_id or args.appid_from_name
 
     steam_path = (
@@ -857,20 +879,16 @@ def main() -> int:
     games_cache: list[InstalledGame] | None = None
 
     if needs_games:
-        games_cache = []
-
-        if include_steam and steam_path:
-            games_cache.extend(build_game_index(steam_path, debug=args.debug))
-        elif include_steam:
+        if include_steam and not steam_path:
             warn("Steam installation not found", debug=args.debug)
 
-        if include_heroic:
-            games_cache.extend(build_heroic_index(args.heroic_root, debug=args.debug))
-
-        if include_lutris:
-            games_cache.extend(build_lutris_index(args.lutris_root, debug=args.debug))
-
-        games_cache = filter_games_by_launcher(games_cache, launcher)
+        games_cache = build_installed_game_index(
+            steam_root=steam_path,
+            heroic_root=args.heroic_root,
+            lutris_root=args.lutris_root,
+            launcher=launcher,
+            debug=args.debug,
+        )
 
     output: dict[str, Any] = {
         "steam_path": str(steam_path) if steam_path else None,

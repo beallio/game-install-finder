@@ -4,9 +4,12 @@ import sqlite3
 from game_install_finder.cli import (
     InstalledGame,
     build_heroic_index,
+    build_installed_game_index,
     build_lutris_index,
     build_parser,
     filter_games_by_launcher,
+    fuzzy_match_game,
+    get_game_by_appid,
 )
 
 
@@ -197,3 +200,145 @@ def test_build_lutris_index_bad_schema_warns_under_debug(tmp_path, capsys):
 
     assert "warning:" in captured.err
     assert "could not read Lutris metadata" in captured.err
+
+
+def test_build_installed_game_index_combines_steam_heroic_and_lutris(tmp_path):
+    steam_root = _write_steam_fixture(tmp_path, "100", "Steam Game", "SteamGame")
+    heroic_root = _write_heroic_fixture(tmp_path, "Heroic Game")
+    lutris_root = _write_lutris_fixture(tmp_path, "Lutris Game")
+
+    games = build_installed_game_index(
+        steam_root=steam_root,
+        heroic_root=heroic_root,
+        lutris_root=lutris_root,
+        launcher="all",
+    )
+
+    assert [(game.launcher, game.name) for game in games] == [
+        ("heroic", "Heroic Game"),
+        ("lutris", "Lutris Game"),
+        ("steam", "Steam Game"),
+    ]
+
+
+def test_fuzzy_match_game_returns_heroic_match_from_combined_index(tmp_path):
+    games = build_installed_game_index(
+        steam_root=_write_steam_fixture(tmp_path, "100", "Steam Game", "SteamGame"),
+        heroic_root=_write_heroic_fixture(tmp_path, "Heroic Quest"),
+        lutris_root=_write_lutris_fixture(tmp_path, "Lutris Game"),
+        launcher="all",
+    )
+
+    result = fuzzy_match_game("heroic quest", games)
+
+    assert result["match"].launcher == "heroic"
+    assert result["match"].name == "Heroic Quest"
+
+
+def test_fuzzy_match_game_returns_lutris_match_from_combined_index(tmp_path):
+    games = build_installed_game_index(
+        steam_root=_write_steam_fixture(tmp_path, "100", "Steam Game", "SteamGame"),
+        heroic_root=_write_heroic_fixture(tmp_path, "Heroic Game"),
+        lutris_root=_write_lutris_fixture(tmp_path, "Lutris Quest"),
+        launcher="all",
+    )
+
+    result = fuzzy_match_game("lutris quest", games)
+
+    assert result["match"].launcher == "lutris"
+    assert result["match"].name == "Lutris Quest"
+
+
+def test_build_installed_game_index_launcher_filter_narrows_fuzzy_results(tmp_path):
+    steam_root = _write_steam_fixture(tmp_path, "100", "Shared Name Steam", "SharedSteam")
+    heroic_root = _write_heroic_fixture(tmp_path, "Shared Name Heroic")
+    lutris_root = _write_lutris_fixture(tmp_path, "Shared Name Lutris")
+
+    heroic_games = build_installed_game_index(
+        steam_root=steam_root,
+        heroic_root=heroic_root,
+        lutris_root=lutris_root,
+        launcher="heroic",
+    )
+    lutris_games = build_installed_game_index(
+        steam_root=steam_root,
+        heroic_root=heroic_root,
+        lutris_root=lutris_root,
+        launcher="lutris",
+    )
+
+    assert fuzzy_match_game("shared name", heroic_games)["match"].launcher == "heroic"
+    assert fuzzy_match_game("shared name", lutris_games)["match"].launcher == "lutris"
+
+
+def test_get_game_by_appid_ignores_non_steam_records(tmp_path):
+    heroic_game = InstalledGame(
+        launcher="heroic",
+        appid="100",
+        name="Heroic Game",
+        installdir=None,
+        path=tmp_path / "HeroicGame",
+        exists=True,
+        source=tmp_path / "installed.json",
+    )
+
+    assert get_game_by_appid([heroic_game], "100") is None
+
+
+def _write_steam_fixture(tmp_path, appid, name, installdir):
+    steam_root = tmp_path / f"steam-{appid}"
+    steamapps = steam_root / "steamapps"
+    (steamapps / "common" / installdir).mkdir(parents=True)
+    (steamapps / f"appmanifest_{appid}.acf").write_text(
+        f'''
+"AppState"
+{{
+    "appid" "{appid}"
+    "name" "{name}"
+    "installdir" "{installdir}"
+}}
+''',
+        encoding="utf-8",
+    )
+    return steam_root
+
+
+def _write_heroic_fixture(tmp_path, name):
+    heroic_root = tmp_path / f"heroic-{name.replace(' ', '-').lower()}"
+    install_path = tmp_path / f"{name.replace(' ', '-')}-install"
+    heroic_root.mkdir()
+    install_path.mkdir()
+    (heroic_root / "installed.json").write_text(
+        json_for_heroic_game(name, install_path),
+        encoding="utf-8",
+    )
+    return heroic_root
+
+
+def _write_lutris_fixture(tmp_path, name):
+    lutris_root = tmp_path / f"lutris-{name.replace(' ', '-').lower()}"
+    install_path = tmp_path / f"{name.replace(' ', '-')}-install"
+    lutris_root.mkdir()
+    install_path.mkdir()
+    connection = sqlite3.connect(lutris_root / "pga.db")
+    connection.execute(
+        "create table games (id integer, name text, installed integer, directory text)"
+    )
+    connection.execute(
+        "insert into games (id, name, installed, directory) values (?, ?, ?, ?)",
+        (7, name, 1, str(install_path)),
+    )
+    connection.commit()
+    connection.close()
+    return lutris_root
+
+
+def json_for_heroic_game(name, install_path):
+    return """
+{
+  "ExampleApp": {
+    "title": "%s",
+    "install_path": "%s"
+  }
+}
+""" % (name, install_path)
