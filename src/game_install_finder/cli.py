@@ -58,6 +58,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import re
 import sys
@@ -345,6 +346,144 @@ def build_game_index(steam_path: Path, *, debug: bool = False) -> list[Installed
 
 
 # ============================================================
+# Heroic discovery
+# ============================================================
+
+
+def _existing_unique_paths(paths: list[Path]) -> list[Path]:
+    results: list[Path] = []
+    seen: set[str] = set()
+
+    for path in paths:
+        if not path.exists():
+            continue
+
+        resolved = str(path.resolve())
+
+        if resolved in seen:
+            continue
+
+        results.append(path)
+        seen.add(resolved)
+
+    return results
+
+
+def get_heroic_config_roots() -> list[Path]:
+    system = platform.system()
+    home = Path.home()
+    candidates: list[Path] = []
+
+    if system == "Linux":
+        candidates.extend(
+            [
+                home / ".config/heroic",
+                home / ".config/legendary",
+                home / ".var/app/com.heroicgameslauncher.hgl/config/heroic",
+                home / ".var/app/com.heroicgameslauncher.hgl/config/legendary",
+            ]
+        )
+    elif system == "Windows":
+        for env_name in ("APPDATA", "LOCALAPPDATA"):
+            if env_value := os.environ.get(env_name):
+                base = Path(env_value)
+                candidates.extend([base / "heroic", base / "legendary"])
+    elif system == "Darwin":
+        candidates.extend(
+            [
+                home / "Library/Application Support/heroic",
+                home / "Library/Application Support/legendary",
+            ]
+        )
+
+    return _existing_unique_paths(candidates)
+
+
+def _heroic_metadata_files(root: Path) -> list[Path]:
+    if not root.exists():
+        return []
+
+    if root.is_file():
+        return [root]
+
+    candidates = [root / "installed.json", root / "legendary" / "installed.json"]
+
+    try:
+        candidates.extend(root.rglob("installed.json"))
+    except OSError:
+        return [path for path in candidates if path.exists()]
+
+    return _existing_unique_paths(candidates)
+
+
+def _heroic_entries(data: Any) -> list[tuple[str | None, dict[str, Any]]]:
+    if isinstance(data, list):
+        return [(None, entry) for entry in data if isinstance(entry, dict)]
+
+    if isinstance(data, dict):
+        return [(key, value) for key, value in data.items() if isinstance(value, dict)]
+
+    return []
+
+
+def _first_string(data: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+    for key in keys:
+        value = data.get(key)
+
+        if isinstance(value, str) and value:
+            return value
+
+    return None
+
+
+def build_heroic_index(
+    heroic_root: Path | None = None,
+    *,
+    debug: bool = False,
+) -> list[InstalledGame]:
+    roots = [heroic_root] if heroic_root else get_heroic_config_roots()
+    games: list[InstalledGame] = []
+
+    for root in roots:
+        if root is None:
+            continue
+
+        for metadata_file in _heroic_metadata_files(root):
+            try:
+                data = json.loads(metadata_file.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                warn(f"could not parse Heroic metadata {metadata_file}: {exc}", debug=debug)
+                continue
+
+            for key, entry in _heroic_entries(data):
+                name = _first_string(entry, ("title", "name", "app_title", "appName", "app_name"))
+                install_path = _first_string(
+                    entry,
+                    ("install_path", "installPath", "install_dir", "path"),
+                )
+
+                if not name or not install_path:
+                    continue
+
+                path = Path(install_path).expanduser()
+                appid = _first_string(entry, ("app_name", "appName", "app_id", "id", "appid"))
+
+                games.append(
+                    InstalledGame(
+                        launcher="heroic",
+                        appid=appid or key,
+                        name=name,
+                        installdir=None,
+                        path=path,
+                        exists=path.exists(),
+                        source=metadata_file,
+                    )
+                )
+
+    return sorted(games, key=lambda game: (game.name or "").lower())
+
+
+# ============================================================
 # Lookup helpers
 # ============================================================
 
@@ -497,6 +636,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--heroic-root",
+        type=Path,
+        metavar="PATH",
+        help="Use this Heroic or Legendary config path instead of auto-detection",
+    )
+
+    parser.add_argument(
         "--list-games",
         action="store_true",
         help="Enumerate installed games",
@@ -552,19 +698,21 @@ def main() -> int:
 
     launcher = args.launcher
     include_steam = launcher in ("all", "steam")
+    include_heroic = launcher in ("all", "heroic")
     needs_games = args.list_games or args.app_id or args.appid_from_name
-    needs_steam = args.steam_path or (include_steam and needs_games)
 
-    steam_path = args.steam_root or get_steam_path() if needs_steam else args.steam_root
+    steam_path = (
+        args.steam_root or get_steam_path() if args.steam_path or include_steam else args.steam_root
+    )
 
-    if needs_steam and not steam_path:
+    if (args.steam_path or (launcher == "steam" and needs_games)) and not steam_path:
         print_json(
             {"error": "Steam installation not found"},
             pretty=args.pretty,
         )
         return 1
 
-    if needs_steam and args.steam_root and steam_path and not steam_path.exists():
+    if include_steam and args.steam_root and steam_path and not steam_path.exists():
         print_json(
             {
                 "error": "Steam root does not exist",
@@ -581,6 +729,11 @@ def main() -> int:
 
         if include_steam and steam_path:
             games_cache.extend(build_game_index(steam_path, debug=args.debug))
+        elif include_steam:
+            warn("Steam installation not found", debug=args.debug)
+
+        if include_heroic:
+            games_cache.extend(build_heroic_index(args.heroic_root, debug=args.debug))
 
         games_cache = filter_games_by_launcher(games_cache, launcher)
 

@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from game_install_finder.cli import InstalledGame, build_parser, filter_games_by_launcher
+from game_install_finder.cli import (
+    InstalledGame,
+    build_heroic_index,
+    build_parser,
+    filter_games_by_launcher,
+)
 
 
 def test_installed_game_json_includes_launcher_and_string_paths(tmp_path):
@@ -97,3 +102,48 @@ def test_filter_games_by_launcher_excludes_nonmatching_launcher(tmp_path):
     )
 
     assert filter_games_by_launcher([steam_game], "heroic") == []
+
+
+def test_build_heroic_index_reads_installed_metadata(tmp_path):
+    heroic_root = tmp_path / "heroic"
+    install_path = tmp_path / "Heroic Game"
+    install_path.mkdir()
+    (heroic_root).mkdir()
+    (heroic_root / "installed.json").write_text(
+        """
+{
+  "ExampleApp": {
+    "title": "Heroic Game",
+    "install_path": "%s"
+  }
+}
+"""
+        % install_path,
+        encoding="utf-8",
+    )
+
+    games = build_heroic_index(heroic_root)
+
+    assert len(games) == 1
+    assert games[0].launcher == "heroic"
+    assert games[0].name == "Heroic Game"
+    assert games[0].path == install_path
+    assert games[0].exists is True
+    assert games[0].source == heroic_root / "installed.json"
+
+
+def test_build_heroic_index_missing_config_returns_empty_list(tmp_path):
+    assert build_heroic_index(tmp_path / "missing") == []
+
+
+def test_build_heroic_index_malformed_json_warns_under_debug(tmp_path, capsys):
+    heroic_root = tmp_path / "heroic"
+    heroic_root.mkdir()
+    (heroic_root / "installed.json").write_text("{", encoding="utf-8")
+
+    assert build_heroic_index(heroic_root, debug=True) == []
+
+    captured = capsys.readouterr()
+
+    assert "warning:" in captured.err
+    assert "could not parse Heroic metadata" in captured.err
