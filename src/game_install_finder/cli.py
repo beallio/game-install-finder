@@ -70,6 +70,7 @@ import vdf
 
 
 FUZZY_MATCH_THRESHOLD = 0.55
+LAUNCHERS = ("steam", "heroic", "lutris", "all")
 
 
 @dataclass(frozen=True)
@@ -362,6 +363,16 @@ def get_game_by_appid(
     return None
 
 
+def filter_games_by_launcher(
+    games: list[InstalledGame],
+    launcher: str,
+) -> list[InstalledGame]:
+    if launcher == "all":
+        return games
+
+    return [game for game in games if game.launcher == launcher]
+
+
 def normalize_name(name: str) -> str:
     """
     Normalize game names for fuzzy matching.
@@ -492,6 +503,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--launcher",
+        choices=LAUNCHERS,
+        default="all",
+        metavar="LAUNCHER",
+        help="Filter installed games by launcher",
+    )
+
+    parser.add_argument(
         "--app-id",
         metavar="APPID",
         help="Lookup installed game by appid",
@@ -531,16 +550,21 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    steam_path = args.steam_root or get_steam_path()
+    launcher = args.launcher
+    include_steam = launcher in ("all", "steam")
+    needs_games = args.list_games or args.app_id or args.appid_from_name
+    needs_steam = args.steam_path or (include_steam and needs_games)
 
-    if not steam_path:
+    steam_path = args.steam_root or get_steam_path() if needs_steam else args.steam_root
+
+    if needs_steam and not steam_path:
         print_json(
             {"error": "Steam installation not found"},
             pretty=args.pretty,
         )
         return 1
 
-    if args.steam_root and not steam_path.exists():
+    if needs_steam and args.steam_root and steam_path and not steam_path.exists():
         print_json(
             {
                 "error": "Steam root does not exist",
@@ -552,11 +576,16 @@ def main() -> int:
 
     games_cache: list[InstalledGame] | None = None
 
-    if args.list_games or args.app_id or args.appid_from_name:
-        games_cache = build_game_index(steam_path, debug=args.debug)
+    if needs_games:
+        games_cache = []
+
+        if include_steam and steam_path:
+            games_cache.extend(build_game_index(steam_path, debug=args.debug))
+
+        games_cache = filter_games_by_launcher(games_cache, launcher)
 
     output: dict[str, Any] = {
-        "steam_path": str(steam_path),
+        "steam_path": str(steam_path) if steam_path else None,
     }
 
     if args.list_games:
