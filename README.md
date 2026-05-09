@@ -1,20 +1,22 @@
 # game-install-finder
 
-Find local game install paths across PC game launchers. Currently supports Steam.
+Find local game install paths across PC game launchers. Supports Steam, Heroic, and Lutris.
 
 `game-install-finder` discovers local launcher libraries, enumerates installed games, and resolves
-game install paths by launcher metadata. The first supported launcher is Steam; Heroic and Lutris
-support are planned future additions. The tool only reads local files and does not call any game
-store or launcher web API.
+game install paths by launcher metadata. It currently reads Steam VDF/ACF metadata, Heroic and
+Legendary installed-game JSON, and Lutris `pga.db` metadata. The tool only reads local files and
+does not call any game store or launcher web API.
 
 ## Features
 
-- Detects Steam on Windows, Linux, and macOS.
+- Detects Steam, Heroic, and Lutris on Windows, Linux, and macOS where local launcher metadata is
+  available.
 - Parses Steam `libraryfolders.vdf` with the `vdf` package instead of brittle string splitting.
 - Includes games from primary and secondary Steam libraries.
 - Reads Steam `appmanifest_*.acf` files to report appid, name, install directory, manifest path,
   and resolved local game path.
-- Supports exact appid lookup and fuzzy installed-game name matching.
+- Reads Heroic/Legendary `installed.json` metadata and Lutris `pga.db` installed-game metadata.
+- Supports exact Steam appid lookup and fuzzy installed-game name matching across launchers.
 - Emits machine-readable JSON, with optional pretty printing.
 - Keeps project virtualenvs and tool caches under `/tmp/game-install-finder` through `./run.sh`.
 
@@ -61,6 +63,18 @@ Use an explicit Steam root instead of auto-detection:
 ./run.sh uv run game-install-finder --steam-root PATH --list-games --pretty
 ```
 
+Use explicit Heroic or Lutris metadata roots instead of auto-detection:
+
+```bash
+./run.sh uv run game-install-finder --heroic-root PATH --lutris-root PATH --list-games --pretty
+```
+
+Limit list or fuzzy search results to one launcher:
+
+```bash
+./run.sh uv run game-install-finder --launcher heroic --appid-from-name NAME --pretty
+```
+
 Find an installed Steam game by appid:
 
 ```bash
@@ -84,7 +98,10 @@ Enable non-fatal parser and discovery warnings:
 ```text
 --steam-path            Return detected Steam installation path
 --steam-root PATH       Use this Steam installation path instead of auto-detection
+--heroic-root PATH      Use this Heroic or Legendary config path instead of auto-detection
+--lutris-root PATH      Use this Lutris data path instead of auto-detection
 --list-games            Enumerate installed games
+--launcher LAUNCHER     Filter installed games by launcher
 --app-id APPID          Lookup installed game by appid
 --appid-from-name NAME  Fuzzy match installed game name to appid
 --pretty                Pretty-print JSON output
@@ -100,10 +117,12 @@ All successful commands include `steam_path`. Additional fields depend on the se
 ```json
 {
   "appid": "730",
+  "launcher": "steam",
   "name": "Counter-Strike: Global Offensive",
   "installdir": "Counter-Strike Global Offensive",
   "path": "/home/user/.local/share/Steam/steamapps/common/Counter-Strike Global Offensive",
   "exists": true,
+  "source": "/home/user/.local/share/Steam/steamapps/appmanifest_730.acf",
   "library": "/home/user/.local/share/Steam",
   "manifest": "/home/user/.local/share/Steam/steamapps/appmanifest_730.acf"
 }
@@ -115,13 +134,19 @@ All successful commands include `steam_path`. Additional fields depend on the se
 {
   "game": {
     "appid": "730",
+    "launcher": "steam",
     "name": "Counter-Strike: Global Offensive"
   },
   "app_path": "/home/user/.local/share/Steam/steamapps/common/Counter-Strike Global Offensive"
 }
 ```
 
-`--appid-from-name NAME` adds `match`, `candidates`, and `score`. If no confident fuzzy match is
+Heroic and Lutris records use the same shape and include `launcher`, `name`, `path`, `exists`, and
+`source`; Steam-only fields such as `library`, `manifest`, and `installdir` are `null` when they do
+not apply.
+
+`--appid-from-name NAME` adds `match`, `candidates`, and `score`. By default it searches Steam,
+Heroic, and Lutris records; use `--launcher` to narrow the search. If no confident fuzzy match is
 found, `match` is `null` and `candidates` still lists the closest installed game names.
 
 Errors are emitted as JSON and return a non-zero exit code:
@@ -137,6 +162,8 @@ Errors are emitted as JSON and return a non-zero exit code:
 - Python 3.12 or newer for this project.
 - `uv` for dependency management, packaging, and command execution.
 - Runtime dependency: `vdf`, used to parse Steam VDF and ACF metadata.
+- Heroic metadata is parsed with the Python standard library `json`.
+- Lutris metadata is parsed with the Python standard library `sqlite3`.
 - Development tools: `pytest`, `pytest-cov`, `ruff`, and `ty`.
 
 ## Development

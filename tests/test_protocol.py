@@ -30,12 +30,15 @@ def test_readme_documents_tool_usage_and_dependencies():
 
     required_phrases = [
         "Find local game install paths across PC game launchers",
-        "Currently supports Steam",
+        "Supports Steam, Heroic, and Lutris",
         "Installation",
         "./run.sh uv sync",
         "Usage",
         "game-install-finder",
         "--steam-root PATH",
+        "--heroic-root PATH",
+        "--lutris-root PATH",
+        "--launcher LAUNCHER",
         "--list-games",
         "--app-id APPID",
         "--appid-from-name NAME",
@@ -54,7 +57,7 @@ def test_project_declares_game_install_finder_metadata():
 
     assert project["name"] == "game-install-finder"
     assert project["description"] == (
-        "Find local game install paths across PC game launchers. Currently supports Steam."
+        "Find local game install paths across Steam, Heroic, and Lutris."
     )
     assert project["scripts"]["game-install-finder"] == "game_install_finder.cli:main"
     assert project["urls"]["Homepage"] == "https://github.com/beallio/game-install-finder"

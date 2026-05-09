@@ -762,7 +762,7 @@ def build_parser() -> argparse.ArgumentParser:
     Construct CLI parser.
     """
     parser = argparse.ArgumentParser(
-        description=("Game install path discovery CLI (currently supports Steam)"),
+        description=("Game install path discovery CLI for Steam, Heroic, and Lutris"),
         formatter_class=lambda prog: argparse.HelpFormatter(
             prog,
             width=100,

@@ -1,7 +1,7 @@
 [project]
 name = "game-install-finder"
 dynamic = ["version"]
-description = "Find local game install paths across PC game launchers. Currently supports Steam."
+description = "Find local game install paths across Steam, Heroic, and Lutris."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }

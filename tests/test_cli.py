@@ -64,6 +64,7 @@ def test_installed_game_allows_non_steam_records(tmp_path):
 def test_help_documents_launcher_filter():
     help_text = build_parser().format_help()
 
+    assert "Steam, Heroic, and Lutris" in help_text
     assert "--launcher LAUNCHER" in help_text
     assert "Filter installed games by launcher" in help_text
 
