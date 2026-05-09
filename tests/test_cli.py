@@ -1,8 +1,10 @@
 from pathlib import Path
+import sqlite3
 
 from game_install_finder.cli import (
     InstalledGame,
     build_heroic_index,
+    build_lutris_index,
     build_parser,
     filter_games_by_launcher,
 )
@@ -147,3 +149,51 @@ def test_build_heroic_index_malformed_json_warns_under_debug(tmp_path, capsys):
 
     assert "warning:" in captured.err
     assert "could not parse Heroic metadata" in captured.err
+
+
+def test_build_lutris_index_reads_pga_database(tmp_path):
+    lutris_root = tmp_path / "lutris"
+    install_path = tmp_path / "lutris-game"
+    install_path.mkdir()
+    lutris_root.mkdir()
+
+    connection = sqlite3.connect(lutris_root / "pga.db")
+    connection.execute(
+        "create table games (id integer, name text, installed integer, directory text)"
+    )
+    connection.execute(
+        "insert into games (id, name, installed, directory) values (?, ?, ?, ?)",
+        (7, "Lutris Game", 1, str(install_path)),
+    )
+    connection.commit()
+    connection.close()
+
+    games = build_lutris_index(lutris_root)
+
+    assert len(games) == 1
+    assert games[0].launcher == "lutris"
+    assert games[0].name == "Lutris Game"
+    assert games[0].path == install_path
+    assert games[0].exists is True
+    assert games[0].source == lutris_root / "pga.db"
+
+
+def test_build_lutris_index_missing_data_root_returns_empty_list(tmp_path):
+    assert build_lutris_index(tmp_path / "missing") == []
+
+
+def test_build_lutris_index_bad_schema_warns_under_debug(tmp_path, capsys):
+    lutris_root = tmp_path / "lutris"
+    lutris_root.mkdir()
+
+    connection = sqlite3.connect(lutris_root / "pga.db")
+    connection.execute("create table games (title text)")
+    connection.commit()
+    connection.close()
+
+    assert build_lutris_index(lutris_root, debug=True) == []
+
+    captured = capsys.readouterr()
+
+    assert "warning:" in captured.err
+    assert "could not read Lutris metadata" in captured.err

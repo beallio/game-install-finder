@@ -61,6 +61,7 @@ import json
 import os
 import platform
 import re
+import sqlite3
 import sys
 from dataclasses import asdict, dataclass
 from difflib import SequenceMatcher
@@ -484,6 +485,129 @@ def build_heroic_index(
 
 
 # ============================================================
+# Lutris discovery
+# ============================================================
+
+
+def get_lutris_data_roots() -> list[Path]:
+    system = platform.system()
+    home = Path.home()
+    candidates: list[Path] = []
+
+    if system == "Linux":
+        candidates.extend(
+            [
+                home / ".local/share/lutris",
+                home / ".var/app/net.lutris.Lutris/data/lutris",
+            ]
+        )
+    elif system == "Windows":
+        for env_name in ("APPDATA", "LOCALAPPDATA"):
+            if env_value := os.environ.get(env_name):
+                candidates.append(Path(env_value) / "lutris")
+    elif system == "Darwin":
+        candidates.append(home / "Library/Application Support/lutris")
+
+    return _existing_unique_paths(candidates)
+
+
+def _lutris_database_files(root: Path) -> list[Path]:
+    if not root.exists():
+        return []
+
+    if root.is_file():
+        return [root]
+
+    candidates = [root / "pga.db"]
+
+    try:
+        candidates.extend(root.rglob("pga.db"))
+    except OSError:
+        return [path for path in candidates if path.exists()]
+
+    return _existing_unique_paths(candidates)
+
+
+def _lutris_path_column(columns: set[str]) -> str | None:
+    for column in ("directory", "install_dir", "install_path", "path"):
+        if column in columns:
+            return column
+
+    return None
+
+
+def build_lutris_index(
+    lutris_root: Path | None = None,
+    *,
+    debug: bool = False,
+) -> list[InstalledGame]:
+    roots = [lutris_root] if lutris_root else get_lutris_data_roots()
+    games: list[InstalledGame] = []
+
+    for root in roots:
+        if root is None:
+            continue
+
+        for database_file in _lutris_database_files(root):
+            try:
+                connection = sqlite3.connect(database_file)
+                connection.row_factory = sqlite3.Row
+
+                with connection:
+                    table_info = connection.execute("pragma table_info(games)").fetchall()
+                    columns = {row["name"] for row in table_info}
+                    path_column = _lutris_path_column(columns)
+
+                    if "name" not in columns or path_column is None:
+                        warn(
+                            f"could not read Lutris metadata {database_file}: "
+                            "games table lacks name or install path column",
+                            debug=debug,
+                        )
+                        continue
+
+                    rows = connection.execute("select * from games").fetchall()
+            except sqlite3.Error as exc:
+                warn(f"could not read Lutris metadata {database_file}: {exc}", debug=debug)
+                continue
+            finally:
+                try:
+                    connection.close()
+                except UnboundLocalError:
+                    pass
+
+            for row in rows:
+                name = row["name"]
+                install_path = row[path_column]
+
+                if not isinstance(name, str) or not name:
+                    continue
+
+                if not isinstance(install_path, str) or not install_path:
+                    continue
+
+                if "installed" in row.keys() and not row["installed"]:
+                    continue
+
+                path = Path(install_path).expanduser()
+                raw_id = row["id"] if "id" in row.keys() else None
+
+                games.append(
+                    InstalledGame(
+                        launcher="lutris",
+                        appid=str(raw_id) if raw_id is not None else None,
+                        name=name,
+                        installdir=None,
+                        path=path,
+                        exists=path.exists(),
+                        source=database_file,
+                    )
+                )
+
+    return sorted(games, key=lambda game: (game.name or "").lower())
+
+
+# ============================================================
 # Lookup helpers
 # ============================================================
 
@@ -643,6 +767,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--lutris-root",
+        type=Path,
+        metavar="PATH",
+        help="Use this Lutris data path instead of auto-detection",
+    )
+
+    parser.add_argument(
         "--list-games",
         action="store_true",
         help="Enumerate installed games",
@@ -699,6 +830,7 @@ def main() -> int:
     launcher = args.launcher
     include_steam = launcher in ("all", "steam")
     include_heroic = launcher in ("all", "heroic")
+    include_lutris = launcher in ("all", "lutris")
     needs_games = args.list_games or args.app_id or args.appid_from_name
 
     steam_path = (
@@ -734,6 +866,9 @@ def main() -> int:
 
         if include_heroic:
             games_cache.extend(build_heroic_index(args.heroic_root, debug=args.debug))
+
+        if include_lutris:
+            games_cache.extend(build_lutris_index(args.lutris_root, debug=args.debug))
 
         games_cache = filter_games_by_launcher(games_cache, launcher)
 
