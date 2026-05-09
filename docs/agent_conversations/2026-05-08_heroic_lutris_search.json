@@ -1,0 +1,36 @@
+{
+  "date": "2026-05-08",
+  "task_objective": "Add Heroic and Lutris installed-game discovery and search alongside existing Steam support.",
+  "files_modified": [
+    "README.md",
+    "docs/agent_conversations/2026-05-08_heroic_lutris_search.json",
+    "docs/plans/lutris_heroic_search.md",
+    "pyproject.toml",
+    "src/game_install_finder/cli.py",
+    "tests/test_cli.py",
+    "tests/test_game_install_finder.py",
+    "tests/test_protocol.py"
+  ],
+  "tests_added": [
+    "Launcher-aware installed game JSON serialization",
+    "Launcher filter help and filtering behavior",
+    "Heroic installed.json indexing, missing-root handling, and malformed JSON warnings",
+    "Lutris pga.db indexing, missing-root handling, and bad-schema warnings",
+    "Combined Steam, Heroic, and Lutris indexing and fuzzy search",
+    "Steam-only appid lookup against launcher-aware records",
+    "README, metadata, and CLI help expectations for multi-launcher support"
+  ],
+  "design_decisions": [
+    "Use a launcher-neutral InstalledGame record while preserving Steam fields such as appid, installdir, library, and manifest.",
+    "Keep exact --app-id lookup Steam-only; Heroic and Lutris IDs are indexed for provenance but ignored by appid lookup.",
+    "Use only Python standard library json and sqlite3 for Heroic and Lutris discovery.",
+    "Treat missing or malformed Heroic and Lutris metadata as non-fatal and emit warnings only when --debug is enabled.",
+    "Sort combined records by launcher and game name for deterministic list and fuzzy-search fixtures."
+  ],
+  "results": [
+    "Added --launcher, --heroic-root, and --lutris-root CLI options.",
+    "Default list and fuzzy search can combine Steam, Heroic, and Lutris installed-game records.",
+    "README and project metadata now describe Steam, Heroic, and Lutris support.",
+    "Validation passed during each task commit through the repository pre-commit hook."
+  ]
+}
