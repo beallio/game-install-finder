@@ -412,6 +412,11 @@ def _heroic_metadata_files(root: Path) -> list[Path]:
     candidates = [
         root / "installed.json",
         root / "legendary" / "installed.json",
+        root / "gog_store" / "installed.json",
+        root / "nile_store" / "installed.json",
+        root / "amazon_store" / "installed.json",
+        root / "ea_store" / "installed.json",
+        root / "luna_store" / "installed.json",
         root / "sideload_apps" / "library.json",
         root / "store_cache" / "gog_library.json",
         root / "store_cache" / "legendary_library.json",
@@ -434,6 +439,10 @@ def _heroic_entries(data: Any) -> list[tuple[str | None, dict[str, Any]]]:
         games = data.get("games")
         if isinstance(games, list):
             return [(None, entry) for entry in games if isinstance(entry, dict)]
+
+        installed = data.get("installed")
+        if isinstance(installed, list):
+            return [(None, entry) for entry in installed if isinstance(entry, dict)]
 
         return [(key, value) for key, value in data.items() if isinstance(value, dict)]
 
@@ -514,6 +523,17 @@ def _resolve_heroic_path(entry: dict[str, Any], default_install_path: Path | Non
     return None
 
 
+def _heroic_entry_name(entry: dict[str, Any], path: Path) -> str | None:
+    name = _first_string(entry, ("title", "name", "app_title", "appName", "app_name"))
+    if name and not name.isdigit():
+        return name
+
+    if path.name:
+        return path.name
+
+    return name
+
+
 def build_heroic_index(
     heroic_root: Path | None = None,
     *,
@@ -536,15 +556,13 @@ def build_heroic_index(
             default_install_path = _heroic_default_install_path(data)
 
             for key, entry in _heroic_entries(data):
-                name = _first_string(entry, ("title", "name", "app_title", "appName", "app_name"))
                 path = _resolve_heroic_path(entry, default_install_path)
 
-                if (
-                    not name
-                    or not path
-                    or not _heroic_entry_is_installed(entry)
-                    or not path.exists()
-                ):
+                if not path or not _heroic_entry_is_installed(entry) or not path.exists():
+                    continue
+
+                name = _heroic_entry_name(entry, path)
+                if not name:
                     continue
 
                 appid = _first_string(entry, ("app_name", "appName", "app_id", "id", "appid"))
@@ -940,7 +958,10 @@ def main() -> int:
 
     launcher = args.launcher
     include_steam = launcher in ("all", "steam")
-    needs_games = args.list_games or args.app_id or args.appid_from_name
+    launcher_only = launcher != "all" and not (
+        args.steam_path or args.list_games or args.app_id or args.appid_from_name
+    )
+    needs_games = args.list_games or args.app_id or args.appid_from_name or launcher_only
 
     steam_path = (
         args.steam_root or get_steam_path() if args.steam_path or include_steam else args.steam_root
@@ -981,7 +1002,7 @@ def main() -> int:
         "steam_path": str(steam_path) if steam_path else None,
     }
 
-    if args.list_games:
+    if args.list_games or launcher_only:
         output["games"] = [game.to_json() for game in games_cache or []]
 
     if args.app_id:

@@ -82,6 +82,12 @@ Limit list or fuzzy search results to one launcher:
 ./run.sh uv run game-install-finder --launcher heroic --appid-from-name NAME --pretty
 ```
 
+List games from one launcher:
+
+```bash
+./run.sh uv run game-install-finder --launcher heroic --pretty
+```
+
 Find an installed Steam game by appid:
 
 ```bash
@@ -151,7 +157,8 @@ All successful commands include `steam_path`. Additional fields depend on the se
 
 Heroic and Lutris records use the same shape and include `launcher`, `name`, `path`, `exists`, and
 `source`; Steam-only fields such as `library`, `manifest`, and `installdir` are `null` when they do
-not apply. Heroic discovery reads `installed.json`, `sideload_apps/library.json`, and
+not apply. Heroic discovery reads `installed.json`, store installed metadata such as
+`gog_store/installed.json`, `sideload_apps/library.json`, and
 `store_cache/{gog,legendary,nile}_library.json`. Sideload entries resolve absolute `folder_name`
 values directly, relative `folder_name` values under `defaultSettings.defaultInstallPath`, and
 `install.executable` values to their parent directory.

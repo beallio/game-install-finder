@@ -1,0 +1,24 @@
+{
+  "date": "2026-05-10",
+  "task_objective": "Fix Heroic launcher-only listing and Heroic GOG installed-game discovery.",
+  "files_modified": [
+    "docs/plans/fix_heroic_launcher_and_gog_discovery.md",
+    "src/game_install_finder/cli.py",
+    "tests/test_cli.py",
+    "README.md",
+    "docs/agent_conversations/2026-05-10_fix_heroic_launcher_and_gog_discovery.json"
+  ],
+  "tests_added": [
+    "test_build_heroic_index_reads_gog_store_installed_metadata",
+    "test_launcher_only_heroic_invocation_lists_heroic_games"
+  ],
+  "design_decisions": [
+    "Treat --launcher <launcher> with no other action as a request to list games for that launcher.",
+    "Parse Heroic top-level installed arrays from store metadata files.",
+    "Prefer the install directory basename over numeric Heroic appName values for display names while preserving appName as appid."
+  ],
+  "results": [
+    "Red test run failed on missing GOG installed metadata and missing launcher-only games output.",
+    "Implementation passed the expanded pytest suite with 36 tests."
+  ]
+}

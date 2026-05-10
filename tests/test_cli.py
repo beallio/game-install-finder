@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import sqlite3
+import sys
 
 from game_install_finder.cli import (
     InstalledGame,
@@ -11,6 +12,7 @@ from game_install_finder.cli import (
     filter_games_by_launcher,
     fuzzy_match_game,
     get_game_by_appid,
+    main,
 )
 
 
@@ -305,6 +307,42 @@ def test_build_heroic_index_reads_store_cache_library_metadata(tmp_path):
     assert games[0].source == metadata_file
 
 
+def test_build_heroic_index_reads_gog_store_installed_metadata(tmp_path):
+    heroic_root = tmp_path / "heroic"
+    install_path = tmp_path / "STAR WARS The Force Unleashed 2"
+    metadata_file = heroic_root / "gog_store" / "installed.json"
+    install_path.mkdir()
+    metadata_file.parent.mkdir(parents=True)
+    metadata_file.write_text(
+        json.dumps(
+            {
+                "installed": [
+                    {
+                        "platform": "windows",
+                        "executable": "",
+                        "install_path": str(install_path),
+                        "install_size": "9.5 GiB",
+                        "is_dlc": False,
+                        "version": "1.1",
+                        "appName": "1174280500",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    games = build_heroic_index(heroic_root)
+
+    assert len(games) == 1
+    assert games[0].launcher == "heroic"
+    assert games[0].appid == "1174280500"
+    assert games[0].name == "STAR WARS The Force Unleashed 2"
+    assert games[0].path == install_path
+    assert games[0].exists is True
+    assert games[0].source == metadata_file
+
+
 def test_build_heroic_index_missing_config_returns_empty_list(tmp_path):
     assert build_heroic_index(tmp_path / "missing") == []
 
@@ -437,6 +475,30 @@ def test_build_installed_game_index_launcher_filter_narrows_fuzzy_results(tmp_pa
 
     assert fuzzy_match_game("shared name", heroic_games)["match"].launcher == "heroic"
     assert fuzzy_match_game("shared name", lutris_games)["match"].launcher == "lutris"
+
+
+def test_launcher_only_heroic_invocation_lists_heroic_games(tmp_path, monkeypatch, capsys):
+    heroic_root = _write_heroic_fixture(tmp_path, "Heroic Game")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "game-install-finder",
+            "--launcher",
+            "heroic",
+            "--heroic-root",
+            str(heroic_root),
+        ],
+    )
+
+    assert main() == 0
+
+    output = json.loads(capsys.readouterr().out)
+
+    assert output["steam_path"] is None
+    assert [(game["launcher"], game["name"]) for game in output["games"]] == [
+        ("heroic", "Heroic Game")
+    ]
 
 
 def test_get_game_by_appid_ignores_non_steam_records(tmp_path):
