@@ -1,0 +1,28 @@
+{
+  "date": "2026-05-09",
+  "task_objective": "Fix Heroic Flatpak discovery so sideloaded games and store-cache metadata resolve to existing local install directories.",
+  "files_modified": [
+    "docs/plans/fix_heroic_flatpak_discovery.md",
+    "src/game_install_finder/cli.py",
+    "tests/test_cli.py",
+    "README.md",
+    "docs/agent_conversations/2026-05-09_fix_heroic_flatpak_discovery.json"
+  ],
+  "tests_added": [
+    "test_build_heroic_index_reads_sideload_games_array_with_absolute_folder_name",
+    "test_build_heroic_index_resolves_relative_sideload_folder_from_default_path",
+    "test_build_heroic_index_falls_back_to_install_executable_parent",
+    "test_build_heroic_index_excludes_uninstalled_or_missing_sideload_records",
+    "test_build_heroic_index_reads_store_cache_library_metadata"
+  ],
+  "design_decisions": [
+    "Keep the public InstalledGame output shape unchanged for Heroic records.",
+    "Read explicit Heroic metadata files for installed, sideload, and store-cache libraries before falling back to recursive installed.json discovery.",
+    "Resolve Heroic paths from explicit install path fields, absolute folder_name, relative folder_name under defaultSettings.defaultInstallPath, then install.executable parent.",
+    "Exclude Heroic records marked is_installed false or whose resolved local path does not exist."
+  ],
+  "results": [
+    "Red test run failed on the five new Heroic discovery cases before implementation.",
+    "Green test run passed with 33 tests after implementation."
+  ]
+}

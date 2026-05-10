@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sqlite3
 
 from game_install_finder.cli import (
@@ -136,6 +137,172 @@ def test_build_heroic_index_reads_installed_metadata(tmp_path):
     assert games[0].path == install_path
     assert games[0].exists is True
     assert games[0].source == heroic_root / "installed.json"
+
+
+def test_build_heroic_index_reads_sideload_games_array_with_absolute_folder_name(tmp_path):
+    heroic_root = tmp_path / "heroic"
+    install_path = tmp_path / "X-Men Origins Wolverine"
+    metadata_file = heroic_root / "sideload_apps" / "library.json"
+    install_path.mkdir()
+    metadata_file.parent.mkdir(parents=True)
+    metadata_file.write_text(
+        json.dumps(
+            {
+                "games": [
+                    {
+                        "app_name": "wolverine",
+                        "title": "X-Men Origins Wolverine",
+                        "folder_name": str(install_path),
+                        "is_installed": True,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    games = build_heroic_index(heroic_root)
+
+    assert len(games) == 1
+    assert games[0].launcher == "heroic"
+    assert games[0].appid == "wolverine"
+    assert games[0].name == "X-Men Origins Wolverine"
+    assert games[0].path == install_path
+    assert games[0].exists is True
+    assert games[0].source == metadata_file
+
+
+def test_build_heroic_index_resolves_relative_sideload_folder_from_default_path(tmp_path):
+    heroic_root = tmp_path / "heroic"
+    default_install_path = tmp_path / "Heroic Games"
+    install_path = default_install_path / "Deadpool"
+    metadata_file = heroic_root / "sideload_apps" / "library.json"
+    install_path.mkdir(parents=True)
+    metadata_file.parent.mkdir(parents=True)
+    metadata_file.write_text(
+        json.dumps(
+            {
+                "defaultSettings": {"defaultInstallPath": str(default_install_path)},
+                "games": [
+                    {
+                        "app_name": "deadpool",
+                        "title": "Deadpool",
+                        "folder_name": "Deadpool",
+                        "is_installed": True,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    games = build_heroic_index(heroic_root)
+
+    assert len(games) == 1
+    assert games[0].appid == "deadpool"
+    assert games[0].name == "Deadpool"
+    assert games[0].path == install_path
+
+
+def test_build_heroic_index_falls_back_to_install_executable_parent(tmp_path):
+    heroic_root = tmp_path / "heroic"
+    install_path = tmp_path / "Transformers Devastation"
+    executable_path = install_path / "Transformers.exe"
+    metadata_file = heroic_root / "sideload_apps" / "library.json"
+    install_path.mkdir()
+    executable_path.touch()
+    metadata_file.parent.mkdir(parents=True)
+    metadata_file.write_text(
+        json.dumps(
+            {
+                "games": [
+                    {
+                        "app_name": "transformers-devastation",
+                        "title": "Transformers Devastation",
+                        "is_installed": True,
+                        "install": {"executable": str(executable_path)},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    games = build_heroic_index(heroic_root)
+
+    assert len(games) == 1
+    assert games[0].appid == "transformers-devastation"
+    assert games[0].name == "Transformers Devastation"
+    assert games[0].path == install_path
+
+
+def test_build_heroic_index_excludes_uninstalled_or_missing_sideload_records(tmp_path):
+    heroic_root = tmp_path / "heroic"
+    installed_path = tmp_path / "Installed Sideload"
+    uninstalled_path = tmp_path / "Uninstalled Sideload"
+    missing_path = tmp_path / "Missing Sideload"
+    metadata_file = heroic_root / "sideload_apps" / "library.json"
+    installed_path.mkdir()
+    uninstalled_path.mkdir()
+    metadata_file.parent.mkdir(parents=True)
+    metadata_file.write_text(
+        json.dumps(
+            {
+                "games": [
+                    {
+                        "title": "Installed Sideload",
+                        "folder_name": str(installed_path),
+                        "is_installed": True,
+                    },
+                    {
+                        "title": "Missing Sideload",
+                        "folder_name": str(missing_path),
+                        "is_installed": True,
+                    },
+                    {
+                        "title": "Uninstalled Sideload",
+                        "folder_name": str(uninstalled_path),
+                        "is_installed": False,
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    games = build_heroic_index(heroic_root)
+
+    assert [game.name for game in games] == ["Installed Sideload"]
+    assert games[0].path == installed_path
+
+
+def test_build_heroic_index_reads_store_cache_library_metadata(tmp_path):
+    heroic_root = tmp_path / "heroic"
+    install_path = tmp_path / "Store Cache Game"
+    metadata_file = heroic_root / "store_cache" / "legendary_library.json"
+    install_path.mkdir()
+    metadata_file.parent.mkdir(parents=True)
+    metadata_file.write_text(
+        json.dumps(
+            {
+                "store-cache-game": {
+                    "app_name": "store-cache-game",
+                    "title": "Store Cache Game",
+                    "install_path": str(install_path),
+                    "is_installed": True,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    games = build_heroic_index(heroic_root)
+
+    assert len(games) == 1
+    assert games[0].appid == "store-cache-game"
+    assert games[0].name == "Store Cache Game"
+    assert games[0].path == install_path
+    assert games[0].source == metadata_file
 
 
 def test_build_heroic_index_missing_config_returns_empty_list(tmp_path):

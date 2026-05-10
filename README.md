@@ -3,9 +3,9 @@
 Find local game install paths across PC game launchers. Supports Steam, Heroic, and Lutris.
 
 `game-install-finder` discovers local launcher libraries, enumerates installed games, and resolves
-game install paths by launcher metadata. It currently reads Steam VDF/ACF metadata, Heroic and
-Legendary installed-game JSON, and Lutris `pga.db` metadata. The tool only reads local files and
-does not call any game store or launcher web API.
+game install paths by launcher metadata. It currently reads Steam VDF/ACF metadata, Heroic,
+Legendary, sideload, and store-cache JSON, and Lutris `pga.db` metadata. The tool only reads local
+files and does not call any game store or launcher web API.
 
 ## Features
 
@@ -15,7 +15,8 @@ does not call any game store or launcher web API.
 - Includes games from primary and secondary Steam libraries.
 - Reads Steam `appmanifest_*.acf` files to report appid, name, install directory, manifest path,
   and resolved local game path.
-- Reads Heroic/Legendary `installed.json` metadata and Lutris `pga.db` installed-game metadata.
+- Reads Heroic/Legendary `installed.json`, Heroic sideload, Heroic store-cache metadata, and
+  Lutris `pga.db` installed-game metadata.
 - Supports exact Steam appid lookup and fuzzy installed-game name matching across launchers.
 - Emits machine-readable JSON, with optional pretty printing.
 - Keeps project virtualenvs and tool caches under `/tmp/game-install-finder` through `./run.sh`.
@@ -143,7 +144,10 @@ All successful commands include `steam_path`. Additional fields depend on the se
 
 Heroic and Lutris records use the same shape and include `launcher`, `name`, `path`, `exists`, and
 `source`; Steam-only fields such as `library`, `manifest`, and `installdir` are `null` when they do
-not apply.
+not apply. Heroic discovery reads `installed.json`, `sideload_apps/library.json`, and
+`store_cache/{gog,legendary,nile}_library.json`. Sideload entries resolve absolute `folder_name`
+values directly, relative `folder_name` values under `defaultSettings.defaultInstallPath`, and
+`install.executable` values to their parent directory.
 
 `--appid-from-name NAME` adds `match`, `candidates`, and `score`. By default it searches Steam,
 Heroic, and Lutris records; use `--launcher` to narrow the search. If no confident fuzzy match is

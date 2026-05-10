@@ -407,7 +407,14 @@ def _heroic_metadata_files(root: Path) -> list[Path]:
     if root.is_file():
         return [root]
 
-    candidates = [root / "installed.json", root / "legendary" / "installed.json"]
+    candidates = [
+        root / "installed.json",
+        root / "legendary" / "installed.json",
+        root / "sideload_apps" / "library.json",
+        root / "store_cache" / "gog_library.json",
+        root / "store_cache" / "legendary_library.json",
+        root / "store_cache" / "nile_library.json",
+    ]
 
     try:
         candidates.extend(root.rglob("installed.json"))
@@ -422,6 +429,10 @@ def _heroic_entries(data: Any) -> list[tuple[str | None, dict[str, Any]]]:
         return [(None, entry) for entry in data if isinstance(entry, dict)]
 
     if isinstance(data, dict):
+        games = data.get("games")
+        if isinstance(games, list):
+            return [(None, entry) for entry in games if isinstance(entry, dict)]
+
         return [(key, value) for key, value in data.items() if isinstance(value, dict)]
 
     return []
@@ -433,6 +444,70 @@ def _first_string(data: dict[str, Any], keys: tuple[str, ...]) -> str | None:
 
         if isinstance(value, str) and value:
             return value
+
+    return None
+
+
+def _nested_first_string(data: dict[str, Any], keys: tuple[str, ...]) -> str | None:
+    for key in keys:
+        value: Any = data
+
+        for part in key.split("."):
+            if not isinstance(value, dict):
+                value = None
+                break
+
+            value = value.get(part)
+
+        if isinstance(value, str) and value:
+            return value
+
+    return None
+
+
+def _heroic_default_install_path(data: Any) -> Path | None:
+    if not isinstance(data, dict):
+        return None
+
+    default_settings = data.get("defaultSettings")
+    if not isinstance(default_settings, dict):
+        return None
+
+    default_install_path = _first_string(default_settings, ("defaultInstallPath",))
+    if not default_install_path:
+        return None
+
+    return Path(default_install_path).expanduser()
+
+
+def _heroic_entry_is_installed(entry: dict[str, Any]) -> bool:
+    is_installed = entry.get("is_installed")
+    if isinstance(is_installed, bool):
+        return is_installed
+
+    return True
+
+
+def _resolve_heroic_path(entry: dict[str, Any], default_install_path: Path | None) -> Path | None:
+    install_path = _first_string(
+        entry,
+        ("install_path", "installPath", "install_dir", "path"),
+    )
+    if install_path:
+        return Path(install_path).expanduser()
+
+    folder_name = _first_string(entry, ("folder_name",))
+    if folder_name:
+        folder_path = Path(folder_name).expanduser()
+        if folder_path.is_absolute():
+            return folder_path
+
+        if default_install_path:
+            return default_install_path / folder_path
+
+    executable = _nested_first_string(entry, ("install.executable",))
+    if executable:
+        return Path(executable).expanduser().parent
 
     return None
 
@@ -456,17 +531,20 @@ def build_heroic_index(
                 warn(f"could not parse Heroic metadata {metadata_file}: {exc}", debug=debug)
                 continue
 
+            default_install_path = _heroic_default_install_path(data)
+
             for key, entry in _heroic_entries(data):
                 name = _first_string(entry, ("title", "name", "app_title", "appName", "app_name"))
-                install_path = _first_string(
-                    entry,
-                    ("install_path", "installPath", "install_dir", "path"),
-                )
+                path = _resolve_heroic_path(entry, default_install_path)
 
-                if not name or not install_path:
+                if (
+                    not name
+                    or not path
+                    or not _heroic_entry_is_installed(entry)
+                    or not path.exists()
+                ):
                     continue
 
-                path = Path(install_path).expanduser()
                 appid = _first_string(entry, ("app_name", "appName", "app_id", "id", "appid"))
 
                 games.append(
@@ -476,7 +554,7 @@ def build_heroic_index(
                         name=name,
                         installdir=None,
                         path=path,
-                        exists=path.exists(),
+                        exists=True,
                         source=metadata_file,
                     )
                 )
