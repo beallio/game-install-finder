@@ -1,0 +1,22 @@
+{
+  "date": "2026-05-10",
+  "task_objective": "Add a CLI version flag to game-install-finder.",
+  "files_modified": [
+    "docs/plans/add_version_flag.md",
+    "src/game_install_finder/cli.py",
+    "tests/test_game_install_finder.py",
+    "README.md",
+    "docs/agent_conversations/2026-05-10_add_version_flag.json"
+  ],
+  "tests_added": [
+    "test_version_flag_prints_package_version"
+  ],
+  "design_decisions": [
+    "Use argparse's standard version action for early exit behavior.",
+    "Reuse game_install_finder._version.__version__ so the CLI reports the installed package version."
+  ],
+  "results": [
+    "Red test run failed because --version was unrecognized.",
+    "Implementation adds --version output as game-install-finder <version>."
+  ]
+}

@@ -4,6 +4,7 @@ from game_install_finder.cli import (
     fuzzy_match_game,
     get_game_by_appid,
 )
+from game_install_finder._version import __version__
 
 
 def test_build_game_index_reads_primary_and_secondary_libraries(tmp_path):
@@ -94,3 +95,17 @@ def test_help_uses_short_metavars_and_single_line_option_descriptions():
     assert "--app-id APPID          Lookup installed game by appid" in help_text
     assert "--appid-from-name NAME  Fuzzy match installed game name" in help_text
     assert "APPID_FROM_NAME" not in help_text
+
+
+def test_version_flag_prints_package_version(capsys):
+    parser = build_parser()
+
+    try:
+        parser.parse_args(["--version"])
+    except SystemExit as exc:
+        assert exc.code == 0
+
+    captured = capsys.readouterr()
+
+    assert captured.out == f"game-install-finder {__version__}\n"
+    assert "--version" in parser.format_help()

@@ -46,6 +46,12 @@ Run the CLI from the repository root:
 ./run.sh uv run game-install-finder --help
 ```
 
+Print the installed version:
+
+```bash
+./run.sh uv run game-install-finder --version
+```
+
 List installed games:
 
 ```bash
@@ -107,6 +113,7 @@ Enable non-fatal parser and discovery warnings:
 --appid-from-name NAME  Fuzzy match installed game name to appid
 --pretty                Pretty-print JSON output
 --debug                 Print non-fatal parser/discovery warnings to stderr
+--version               Print the installed version and exit
 ```
 
 ## JSON output

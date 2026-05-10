@@ -70,6 +70,8 @@ from typing import Any
 
 import vdf
 
+from game_install_finder._version import __version__
+
 
 FUZZY_MATCH_THRESHOLD = 0.55
 LAUNCHERS = ("steam", "heroic", "lutris", "all")
@@ -911,6 +913,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--debug",
         action="store_true",
         help="Print non-fatal parser/discovery warnings to stderr",
+    )
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"game-install-finder {__version__}",
+        help="Print the installed version and exit",
     )
 
     return parser
