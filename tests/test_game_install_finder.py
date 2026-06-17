@@ -88,13 +88,52 @@ def test_fuzzy_match_game_returns_best_installed_match(tmp_path):
     assert result["score"] >= 0.55
 
 
+def test_fuzzy_match_game_custom_cutoff_suppresses_low_scoring_match(tmp_path):
+    steam_root = tmp_path / "steam"
+    steamapps = steam_root / "steamapps"
+    (steamapps / "common" / "Counter-Strike Global Offensive").mkdir(parents=True)
+    (steamapps / "appmanifest_730.acf").write_text(
+        """
+"AppState"
+{
+    "appid" "730"
+    "name" "Counter-Strike: Global Offensive"
+    "installdir" "Counter-Strike Global Offensive"
+}
+""",
+        encoding="utf-8",
+    )
+
+    result = fuzzy_match_game(
+        "counter strike",
+        build_game_index(steam_root),
+        cutoff_score=0.95,
+    )
+
+    assert result["match"] is None
+    assert result["candidates"] == ["Counter-Strike: Global Offensive"]
+    assert result["score"] < 0.95
+
+
 def test_help_uses_short_metavars_and_single_line_option_descriptions():
     help_text = build_parser().format_help()
 
     assert "--steam-root PATH       Use this Steam installation path" in help_text
     assert "--app-id APPID          Lookup installed game by appid" in help_text
     assert "--appid-from-name NAME  Fuzzy match installed game name" in help_text
+    assert "--cutoff-score SCORE    Minimum fuzzy match score" in help_text
     assert "APPID_FROM_NAME" not in help_text
+
+
+def test_cutoff_score_rejects_values_outside_score_range():
+    parser = build_parser()
+
+    try:
+        parser.parse_args(["--cutoff-score", "1.1"])
+    except SystemExit as exc:
+        assert exc.code == 2
+    else:
+        raise AssertionError("expected parser to reject cutoff scores above 1.0")
 
 
 def test_version_flag_prints_package_version(capsys):

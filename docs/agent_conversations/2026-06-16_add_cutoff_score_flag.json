@@ -1,0 +1,31 @@
+{
+  "date": "2026-06-16",
+  "task_objective": "Add a cutoff score flag so fuzzy name lookup suppresses matches below a user-provided score.",
+  "files_modified": [
+    "README.md",
+    "docs/agent_conversations/2026-06-16_add_cutoff_score_flag.json",
+    "docs/plans/add_cutoff_score_flag.md",
+    "src/game_install_finder/cli.py",
+    "tests/test_cli.py",
+    "tests/test_game_install_finder.py"
+  ],
+  "tests_added": [
+    "tests/test_game_install_finder.py::test_fuzzy_match_game_custom_cutoff_suppresses_low_scoring_match",
+    "tests/test_game_install_finder.py::test_cutoff_score_rejects_values_outside_score_range",
+    "tests/test_cli.py::test_cutoff_score_flag_suppresses_low_scoring_fuzzy_match"
+  ],
+  "design_decisions": [
+    "Expose the option as --cutoff-score with a SCORE metavar.",
+    "Validate cutoff scores as floats in the inclusive range 0.0 to 1.0.",
+    "Keep the existing default fuzzy threshold when the flag is omitted.",
+    "Suppress only the accepted match; keep candidates and score in JSON output for diagnostics."
+  ],
+  "results": [
+    "Targeted red tests failed before implementation for the missing matcher parameter, missing help text, and unrecognized CLI flag.",
+    "Targeted tests passed after implementation.",
+    "./run.sh uv run ruff check . --fix passed.",
+    "./run.sh uv run ruff format . passed with 7 files left unchanged.",
+    "./run.sh uv run ty check src/ passed.",
+    "./run.sh uv run pytest passed with 39 tests."
+  ]
+}

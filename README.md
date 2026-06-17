@@ -100,6 +100,12 @@ Fuzzy match an installed game name:
 ./run.sh uv run game-install-finder --appid-from-name NAME --pretty
 ```
 
+Suppress fuzzy matches below a minimum score:
+
+```bash
+./run.sh uv run game-install-finder --appid-from-name NAME --cutoff-score 0.8 --pretty
+```
+
 Enable non-fatal parser and discovery warnings:
 
 ```bash
@@ -117,6 +123,7 @@ Enable non-fatal parser and discovery warnings:
 --launcher LAUNCHER     Filter installed games by launcher
 --app-id APPID          Lookup installed game by appid
 --appid-from-name NAME  Fuzzy match installed game name to appid
+--cutoff-score SCORE    Minimum fuzzy match score from 0.0 to 1.0
 --pretty                Pretty-print JSON output
 --debug                 Print non-fatal parser/discovery warnings to stderr
 --version               Print the installed version and exit
@@ -166,6 +173,8 @@ values directly, relative `folder_name` values under `defaultSettings.defaultIns
 `--appid-from-name NAME` adds `match`, `candidates`, and `score`. By default it searches Steam,
 Heroic, and Lutris records; use `--launcher` to narrow the search. If no confident fuzzy match is
 found, `match` is `null` and `candidates` still lists the closest installed game names.
+Use `--cutoff-score SCORE` to override the default minimum score; matches below that cutoff are
+suppressed while `candidates` and `score` remain in the output.
 
 Errors are emitted as JSON and return a non-zero exit code:
 

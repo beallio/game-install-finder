@@ -776,6 +776,8 @@ def normalize_name(name: str) -> str:
 def fuzzy_match_game(
     query: str,
     games: list[InstalledGame],
+    *,
+    cutoff_score: float = FUZZY_MATCH_THRESHOLD,
 ) -> dict[str, Any]:
     """
     Perform robust fuzzy matching against installed games.
@@ -841,7 +843,7 @@ def fuzzy_match_game(
     candidates = [game.name for _, game in scored[:5] if game.name]
 
     best_score = scored[0][0] if scored else 0.0
-    best_match = scored[0][1] if scored and best_score >= FUZZY_MATCH_THRESHOLD else None
+    best_match = scored[0][1] if scored and best_score >= cutoff_score else None
 
     return {
         "match": best_match,
@@ -853,6 +855,18 @@ def fuzzy_match_game(
 # ============================================================
 # CLI
 # ============================================================
+
+
+def cutoff_score_value(value: str) -> float:
+    try:
+        score = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be a number from 0.0 to 1.0") from exc
+
+    if not 0.0 <= score <= 1.0:
+        raise argparse.ArgumentTypeError("must be a number from 0.0 to 1.0")
+
+    return score
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -919,6 +933,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--appid-from-name",
         metavar="NAME",
         help="Fuzzy match installed game name to appid",
+    )
+
+    parser.add_argument(
+        "--cutoff-score",
+        type=cutoff_score_value,
+        default=FUZZY_MATCH_THRESHOLD,
+        metavar="SCORE",
+        help="Minimum fuzzy match score from 0.0 to 1.0",
     )
 
     parser.add_argument(
@@ -1020,6 +1042,7 @@ def main() -> int:
         result = fuzzy_match_game(
             args.appid_from_name,
             games_cache or [],
+            cutoff_score=args.cutoff_score,
         )
 
         match = result["match"]
