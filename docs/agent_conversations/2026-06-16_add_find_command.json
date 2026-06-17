@@ -1,0 +1,31 @@
+{
+  "date": "2026-06-16",
+  "task_objective": "Add a find command that routes numeric queries to appid lookup and non-numeric queries to fuzzy name lookup.",
+  "files_modified": [
+    "README.md",
+    "docs/agent_conversations/2026-06-16_add_find_command.json",
+    "docs/plans/add_find_command.md",
+    "src/game_install_finder/cli.py",
+    "tests/test_cli.py",
+    "tests/test_game_install_finder.py"
+  ],
+  "tests_added": [
+    "tests/test_cli.py::test_find_command_numeric_query_uses_appid_lookup",
+    "tests/test_cli.py::test_find_command_text_query_uses_fuzzy_name_lookup"
+  ],
+  "design_decisions": [
+    "Implement find as a lightweight command shape on the existing argparse parser.",
+    "Treat digits-only queries as appid lookups.",
+    "Treat every other query as fuzzy name lookup.",
+    "Reuse existing JSON output fields for appid and fuzzy lookup paths.",
+    "Keep --app-id and --appid-from-name for backward compatibility."
+  ],
+  "results": [
+    "Targeted red tests failed before implementation because find was unrecognized and absent from help.",
+    "Targeted tests passed after implementation.",
+    "./run.sh uv run ruff check . --fix passed.",
+    "./run.sh uv run ruff format . passed after reformatting 1 file.",
+    "./run.sh uv run ty check src/ passed.",
+    "./run.sh uv run pytest passed with 41 tests."
+  ]
+}

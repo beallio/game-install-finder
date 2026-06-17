@@ -118,6 +118,7 @@ def test_fuzzy_match_game_custom_cutoff_suppresses_low_scoring_match(tmp_path):
 def test_help_uses_short_metavars_and_single_line_option_descriptions():
     help_text = build_parser().format_help()
 
+    assert "find QUERY" in help_text
     assert "--steam-root PATH       Use this Steam installation path" in help_text
     assert "--app-id APPID          Lookup installed game by appid" in help_text
     assert "--appid-from-name NAME  Fuzzy match installed game name" in help_text

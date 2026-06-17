@@ -507,6 +507,60 @@ def test_cutoff_score_flag_suppresses_low_scoring_fuzzy_match(tmp_path, monkeypa
     assert output["score"] < 0.95
 
 
+def test_find_command_numeric_query_uses_appid_lookup(tmp_path, monkeypatch, capsys):
+    steam_root = _write_steam_fixture(tmp_path, "730", "Counter-Strike 2", "Counter-Strike 2")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "game-install-finder",
+            "--steam-root",
+            str(steam_root),
+            "find",
+            "730",
+        ],
+    )
+
+    assert main() == 0
+
+    output = json.loads(capsys.readouterr().out)
+
+    assert output["game"]["appid"] == "730"
+    assert output["game"]["name"] == "Counter-Strike 2"
+    assert output["app_path"] == str(steam_root / "steamapps" / "common" / "Counter-Strike 2")
+    assert "match" not in output
+
+
+def test_find_command_text_query_uses_fuzzy_name_lookup(tmp_path, monkeypatch, capsys):
+    steam_root = _write_steam_fixture(
+        tmp_path,
+        "730",
+        "Counter-Strike: Global Offensive",
+        "Counter-Strike Global Offensive",
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "game-install-finder",
+            "--steam-root",
+            str(steam_root),
+            "find",
+            "counter strike",
+        ],
+    )
+
+    assert main() == 0
+
+    output = json.loads(capsys.readouterr().out)
+
+    assert output["match"]["appid"] == "730"
+    assert output["match"]["name"] == "Counter-Strike: Global Offensive"
+    assert output["candidates"] == ["Counter-Strike: Global Offensive"]
+    assert output["score"] >= 0.55
+    assert "game" not in output
+
+
 def test_launcher_only_heroic_invocation_lists_heroic_games(tmp_path, monkeypatch, capsys):
     heroic_root = _write_heroic_fixture(tmp_path, "Heroic Game")
     monkeypatch.setattr(

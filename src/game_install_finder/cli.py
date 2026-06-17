@@ -874,12 +874,28 @@ def build_parser() -> argparse.ArgumentParser:
     Construct CLI parser.
     """
     parser = argparse.ArgumentParser(
+        usage="%(prog)s [OPTIONS] [find QUERY]",
         description=("Game install path discovery CLI for Steam, Heroic, and Lutris"),
         formatter_class=lambda prog: argparse.HelpFormatter(
             prog,
             width=100,
             max_help_position=32,
         ),
+    )
+
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=("find",),
+        metavar="find",
+        help="Find an installed game by appid or name",
+    )
+
+    parser.add_argument(
+        "find_query",
+        nargs="?",
+        metavar="QUERY",
+        help="Appid or game name for the find command",
     )
 
     parser.add_argument(
@@ -979,11 +995,19 @@ def main() -> int:
     args = parser.parse_args()
 
     launcher = args.launcher
+    find_query = args.find_query if args.command == "find" else None
+    if args.command == "find" and not find_query:
+        parser.error("find requires QUERY")
+
+    find_app_id = find_query if find_query and find_query.isdigit() else None
+    find_name_query = find_query if find_query and not find_query.isdigit() else None
     include_steam = launcher in ("all", "steam")
     launcher_only = launcher != "all" and not (
-        args.steam_path or args.list_games or args.app_id or args.appid_from_name
+        args.steam_path or args.list_games or args.app_id or args.appid_from_name or find_query
     )
-    needs_games = args.list_games or args.app_id or args.appid_from_name or launcher_only
+    needs_games = (
+        args.list_games or args.app_id or args.appid_from_name or find_query or launcher_only
+    )
 
     steam_path = (
         args.steam_root or get_steam_path() if args.steam_path or include_steam else args.steam_root
@@ -1027,10 +1051,11 @@ def main() -> int:
     if args.list_games or launcher_only:
         output["games"] = [game.to_json() for game in games_cache or []]
 
-    if args.app_id:
+    app_id_query = args.app_id or find_app_id
+    if app_id_query:
         game = get_game_by_appid(
             games_cache or [],
-            args.app_id,
+            app_id_query,
         )
 
         output["game"] = game.to_json() if game else None
@@ -1038,9 +1063,10 @@ def main() -> int:
         if game:
             output["app_path"] = str(game.path) if game.path else None
 
-    if args.appid_from_name:
+    name_query = args.appid_from_name or find_name_query
+    if name_query:
         result = fuzzy_match_game(
-            args.appid_from_name,
+            name_query,
             games_cache or [],
             cutoff_score=args.cutoff_score,
         )

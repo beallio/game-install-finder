@@ -94,6 +94,13 @@ Find an installed Steam game by appid:
 ./run.sh uv run game-install-finder --app-id APPID --pretty
 ```
 
+Find an installed game by appid or name:
+
+```bash
+./run.sh uv run game-install-finder find 730 --pretty
+./run.sh uv run game-install-finder find "counter strike" --pretty
+```
+
 Fuzzy match an installed game name:
 
 ```bash
@@ -127,6 +134,7 @@ Enable non-fatal parser and discovery warnings:
 --pretty                Pretty-print JSON output
 --debug                 Print non-fatal parser/discovery warnings to stderr
 --version               Print the installed version and exit
+find QUERY              Find by appid when QUERY is numeric, otherwise by name
 ```
 
 ## JSON output
@@ -161,6 +169,9 @@ All successful commands include `steam_path`. Additional fields depend on the se
   "app_path": "/home/user/.local/share/Steam/steamapps/common/Counter-Strike Global Offensive"
 }
 ```
+
+`find QUERY` uses the same output fields as the legacy lookup flags. Digits-only queries use the
+`--app-id` behavior. Every other query uses the `--appid-from-name` behavior.
 
 Heroic and Lutris records use the same shape and include `launcher`, `name`, `path`, `exists`, and
 `source`; Steam-only fields such as `library`, `manifest`, and `installdir` are `null` when they do
