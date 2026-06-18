@@ -70,7 +70,16 @@ from typing import Any
 
 import vdf
 
-from game_install_finder._version import __version__
+try:
+    from game_install_finder._version import __version__
+except ModuleNotFoundError:
+    import sys
+    from pathlib import Path
+
+    _src_path = str(Path(__file__).resolve().parent.parent)
+    if _src_path not in sys.path:
+        sys.path.insert(0, _src_path)
+    from game_install_finder._version import __version__
 
 
 FUZZY_MATCH_THRESHOLD = 0.55

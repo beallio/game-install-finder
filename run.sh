@@ -5,5 +5,5 @@ export PYTHONPYCACHEPREFIX=/tmp/game-install-finder/__pycache__
 export TMPDIR=/tmp/game-install-finder
 export PATH="/tmp/game-install-finder/.venv/bin:$PATH"
 
-echo "Using environment: /tmp/game-install-finder/.venv"
+echo "Using environment: /tmp/game-install-finder/.venv" >&2
 exec "$@"
