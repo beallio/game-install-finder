@@ -1,0 +1,14 @@
+{
+  "date": "2026-06-18",
+  "task_objective": "Fix execution paths by ensuring wrapper-based output is valid JSON and direct PEP 723 script execution succeeds.",
+  "files_modified": [
+    "run.sh",
+    "src/game_install_finder/cli.py"
+  ],
+  "tests_added": [],
+  "design_decisions": [
+    "Redirected diagnostic 'Using environment' output in run.sh to stderr (>&2) to preserve valid JSON on stdout.",
+    "Replaced relative/absolute import on cli.py with a try/except block that falls back to injecting the project's 'src' directory into sys.path. This ensures resolution of game_install_finder._version during PEP 723 standalone execution while satisfying strict type checkers like 'ty'."
+  ],
+  "results": "Validation suite passes and both execution issues are resolved."
+}
